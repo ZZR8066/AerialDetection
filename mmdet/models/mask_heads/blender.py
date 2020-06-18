@@ -26,11 +26,17 @@ class Blender(nn.Module):
     def crop_segm(self, bases, rrois):
         return self.rroi_extractor(tuple([bases]),rrois)
         
+    # def merge_bases(self, base_maps, atten_maps):
+    #     atten_maps = F.interpolate(atten_maps, (self.base_size, self.base_size), mode='bilinear').softmax(dim=1)
+    #     mask_pred = (base_maps * atten_maps).sum(dim=1)
+    #     return mask_pred
+    
     def merge_bases(self, base_maps, atten_maps):
-        atten_maps = F.interpolate(atten_maps, (self.base_size, self.base_size), mode='bilinear').softmax(dim=1)
+        atten_maps = F.interpolate(atten_maps, (base_maps.shape[-2], base_maps.shape[-1]), \
+            mode='bilinear').softmax(dim=1)
         mask_pred = (base_maps * atten_maps).sum(dim=1)
         return mask_pred
-    
+
     def get_target(self, sampling_results, gt_masks_list):
         pos_proposals_list = [res.pos_bboxes for res in sampling_results]
         pos_assigned_gt_inds_list = [
@@ -110,3 +116,103 @@ class Blender(nn.Module):
             cls_segms[label].append(rle)
 
         return cls_segms
+
+    def get_seg_masks(self, basis_pred, atten_maps, det_rects, det_labels, rcnn_test_cfg,
+                      ori_shape, scale_factor, rescale):
+
+        cls_segms = [[] for _ in range(self.num_classes - 1)]
+        rects  = det_rects
+        labels = det_labels
+
+        if rescale:
+            img_h, img_w = ori_shape[:2]
+        else:
+            img_h = np.round(ori_shape[0] * scale_factor).astype(np.int32)
+            img_w = np.round(ori_shape[1] * scale_factor).astype(np.int32)
+            scale_factor = 1.0
+        
+        rects[:, :4] = rects[:, :4] / scale_factor
+        basis_pred = F.interpolate(basis_pred, (img_h, img_w), mode="bilinear", align_corners=False)
+        atten_maps = paste_rotate_masks_in_image(atten_maps, rects, img_h, img_w)
+        mask_pred = self.merge_bases(basis_pred, atten_maps)
+        atten_invalid = ~paste_rotate_masks_in_image(atten_maps.new_ones(atten_maps.size())\
+            , rects, img_h, img_w).to(torch.bool)
+        mask_pred = mask_pred.sigmoid()
+        mask_pred[atten_invalid[:,0,:,:]] = 0.0
+        
+        for i in range(mask_pred.shape[0]):
+            label = labels[i]
+            im_mask = (mask_pred[i,:,:] > rcnn_test_cfg.mask_thr_binary).cpu().numpy().astype('uint8')
+            rle = mask_util.encode(
+                np.array(im_mask[:, :, np.newaxis], order='F'))[0]
+            cls_segms[label].append(rle)
+        return cls_segms
+
+import cv2
+import torch
+import numpy as np
+from PIL import Image
+from torch.nn import functional as F
+
+BYTES_PER_FLOAT = 4
+GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
+
+def _do_paste_rotate_mask(masks, rboxes, img_h, img_w):
+    """
+    Args:
+        masks: None, None, H, W
+        rboxes: N, 5
+        img_h, img_w (int):
+    Returns:
+        a mask of shape (N, img_h, img_w)
+    """
+    N = masks.shape[0]
+    device = masks.device
+    x0_int, y0_int = 0, 0
+    x1_int, y1_int = img_w, img_h
+    xc, yc, w, h, theta = torch.split(rboxes, 1, dim=-1)  # each is Nx1
+
+    img_y = torch.arange(y0_int, y1_int, device=device, dtype=torch.float32) + 0.5
+    img_x = torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5
+    # center
+    img_y = (img_y - yc)
+    img_x = (img_x - xc)
+    gx = img_x[:, None, :].expand(N, img_y.size(1), img_x.size(1))
+    gy = img_y[:, :, None].expand(N, img_y.size(1), img_x.size(1))
+    # rotate
+    gx_rotate = ((gx.reshape(N,-1)*torch.cos(theta) + gy.reshape(N,-1)* \
+        torch.sin(theta)) / w * 2).reshape(gx.size())
+    gy_rotate = ((gy.reshape(N,-1)*torch.cos(theta) - gx.reshape(N,-1)* \
+        torch.sin(theta)) / h * 2).reshape(gy.size())
+    grid = torch.stack([gx_rotate, gy_rotate], dim=3)
+
+    img_mask = F.grid_sample(masks.to(dtype=torch.float32), grid, align_corners=False)
+    return img_mask
+
+def paste_rotate_masks_in_image(masks, rboxes, img_h, img_w):
+    
+    assert masks.shape[-1] == masks.shape[-2], "Only square mask predictions are supported"
+    N = masks.shape[0]
+    K = masks.shape[1]
+
+    device = rboxes.device
+    assert len(rboxes) == N, boxes.shape
+
+    # GPU benefits from parallelism for larger chunks, but may have memory issue
+    # int(img_h) because shape may be tensors in tracing
+    num_chunks = int(np.ceil(N * int(img_h) * int(img_w) * BYTES_PER_FLOAT / GPU_MEM_LIMIT))
+    assert (
+        num_chunks <= N
+    ), "Default GPU_MEM_LIMIT in mask_ops.py is too small; try increasing it"
+    chunks = torch.chunk(torch.arange(N, device=device), num_chunks)
+
+    img_masks = torch.zeros(
+        N, K, img_h, img_w, device=device, dtype=masks.dtype
+    )
+    for inds in chunks:
+        masks_chunk = _do_paste_rotate_mask(
+            masks[inds, :, :, :], rboxes[inds], img_h, img_w
+        )
+
+        img_masks[(inds,)] = masks_chunk
+    return img_masks

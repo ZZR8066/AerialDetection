@@ -317,6 +317,32 @@ class RotateBlendMaskRCNN(BaseDetectorNew, RPNTestMixin):
                         det_rbboxes, det_labels, rescale=rescale)
         return bbox_results, rbbox_results, segm_results
         
+    # def simple_test_rotate_mask(self, x, img_meta, 
+    #         det_rbboxes, det_labels, rescale=False):
+    #     ori_shape = img_meta[0]['ori_shape']
+    #     scale_factor = img_meta[0]['scale_factor']
+    #     if det_rbboxes.shape[0] == 0:
+    #         segm_result = [[] for _ in range(self.blender.num_classes - 1)]
+    #     else:
+    #         # basis pred 
+    #         basis_pred = self.basis_head.forward(x)
+    #         # atten pred
+    #         # if det_bboxes is rescaled to the original image size, we need to
+    #         # rescale it back to the testing scale to obtain RoIs.
+    #         _rbboxes = (
+    #             det_rbboxes[:, :8] * scale_factor if rescale else det_rbboxes)
+    #         _rects = rbboxes2rects(_rbboxes[:, :8])
+    #         rrois = dbbox2roi([_rects])
+    #         atten_feats = self.atten_rroi_extractor(
+    #                     x[:self.atten_rroi_extractor.num_inputs], rrois)
+    #         atten_maps = self.atten_head(atten_feats)
+    #         base_maps = self.blender.crop_segm(basis_pred, rrois)
+    #         mask_pred = self.blender.merge_bases(base_maps, atten_maps)
+    #         segm_result = self.blender.get_rotate_seg_masks(mask_pred, 
+    #                 _rects, det_labels, self.test_cfg.rcnn, ori_shape,
+    #                 scale_factor, rescale)
+    #     return segm_result
+
     def simple_test_rotate_mask(self, x, img_meta, 
             det_rbboxes, det_labels, rescale=False):
         ori_shape = img_meta[0]['ori_shape']
@@ -336,12 +362,10 @@ class RotateBlendMaskRCNN(BaseDetectorNew, RPNTestMixin):
             atten_feats = self.atten_rroi_extractor(
                         x[:self.atten_rroi_extractor.num_inputs], rrois)
             atten_maps = self.atten_head(atten_feats)
-            base_maps = self.blender.crop_segm(basis_pred, rrois)
-            mask_pred = self.blender.merge_bases(base_maps, atten_maps)
-            segm_result = self.blender.get_rotate_seg_masks(mask_pred, 
-                    _rects, det_labels, self.test_cfg.rcnn, ori_shape,
-                    scale_factor, rescale)
+            segm_result = self.blender.get_seg_masks(basis_pred, atten_maps, 
+                _rects, det_labels, self.test_cfg.rcnn, 
+                ori_shape, scale_factor, rescale)
         return segm_result
-    
+
     def aug_test(self, imgs, img_metas, proposals=None, rescale=None):
         print('aug_test is not support')
