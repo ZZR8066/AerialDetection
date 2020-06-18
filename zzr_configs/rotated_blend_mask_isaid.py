@@ -88,6 +88,7 @@ model = dict(
             type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
     blender=dict(
         type='Blender',
+        num_classes=16,
         base_size=56,
         rroi_extractor=dict(
             type='RboxSingleRoIExtractor',
@@ -170,7 +171,7 @@ test_cfg = dict(
         )
 # dataset settings
 dataset_type = 'iSAIDDataset'
-data_root = '/disk1/zzr/dataset_isaid/'
+data_root = '/disk2/zzr/dataset_isaid/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(

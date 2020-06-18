@@ -322,7 +322,7 @@ class RotateBlendMaskRCNN(BaseDetectorNew, RPNTestMixin):
         ori_shape = img_meta[0]['ori_shape']
         scale_factor = img_meta[0]['scale_factor']
         if det_rbboxes.shape[0] == 0:
-            segm_result = [[] for _ in range(self.mask_head.num_classes - 1)]
+            segm_result = [[] for _ in range(self.blender.num_classes - 1)]
         else:
             # basis pred 
             basis_pred = self.basis_head.forward(x)
@@ -338,7 +338,7 @@ class RotateBlendMaskRCNN(BaseDetectorNew, RPNTestMixin):
             atten_maps = self.atten_head(atten_feats)
             base_maps = self.blender.crop_segm(basis_pred, rrois)
             mask_pred = self.blender.merge_bases(base_maps, atten_maps)
-            segm_result = self.atten_head.get_rotate_seg_masks(mask_pred, 
+            segm_result = self.blender.get_rotate_seg_masks(mask_pred, 
                     _rects, det_labels, self.test_cfg.rcnn, ori_shape,
                     scale_factor, rescale)
         return segm_result
