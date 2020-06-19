@@ -132,17 +132,27 @@ class Blender(nn.Module):
             scale_factor = 1.0
         
         rects[:, :4] = rects[:, :4] / scale_factor
-        basis_pred = F.interpolate(basis_pred, (img_h, img_w), mode="bilinear", align_corners=False)
-        atten_maps = paste_rotate_masks_in_image(atten_maps, rects, img_h, img_w)
+        # basis_pred = F.interpolate(basis_pred, (img_h, img_w), mode="bilinear", align_corners=False)
+        feat_h = basis_pred.shape[-2]
+        feat_w = basis_pred.shape[-1]
+        scale_x = feat_w / img_w
+        scale_y = feat_h / img_h
+        rects[:,0] *= scale_x
+        rects[:,1] *= scale_y
+        rects[:,2] *= scale_x
+        rects[:,3] *= scale_y
+        atten_maps = paste_rotate_masks_in_image(atten_maps, rects, feat_h, feat_w)
         mask_pred = self.merge_bases(basis_pred, atten_maps)
-        atten_invalid = ~paste_rotate_masks_in_image(atten_maps.new_ones(atten_maps.size())\
-            , rects, img_h, img_w).to(torch.bool)
         mask_pred = mask_pred.sigmoid()
-        mask_pred[atten_invalid[:,0,:,:]] = 0.0
+        mask_pred[~(paste_rotate_masks_in_image(atten_maps.new_ones(atten_maps.size())\
+            , rects, feat_h, feat_w).to(torch.bool)[:,0,:,:])] = 0.0
         
         for i in range(mask_pred.shape[0]):
             label = labels[i]
-            im_mask = (mask_pred[i,:,:] > rcnn_test_cfg.mask_thr_binary).cpu().numpy().astype('uint8')
+            im_mask = mask_pred[i,:,:].cpu().numpy()
+            im_mask = mmcv.imresize(im_mask,(img_w, img_h))
+            im_mask = (im_mask > rcnn_test_cfg.mask_thr_binary).astype('uint8')
+
             rle = mask_util.encode(
                 np.array(im_mask[:, :, np.newaxis], order='F'))[0]
             cls_segms[label].append(rle)
@@ -155,7 +165,7 @@ from PIL import Image
 from torch.nn import functional as F
 
 BYTES_PER_FLOAT = 4
-GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
+GPU_MEM_LIMIT = 512 ** 3  # 1 GB memory limit
 
 def _do_paste_rotate_mask(masks, rboxes, img_h, img_w):
     """

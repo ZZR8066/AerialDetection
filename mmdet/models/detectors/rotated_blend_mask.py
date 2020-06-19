@@ -252,13 +252,33 @@ class RotateBlendMaskRCNN(BaseDetectorNew, RPNTestMixin):
         basis_pred = self.basis_head.forward(x)
         loss_segm = self.basis_head.add_segm_loss(x, (int(basis_pred.shape[-2] * self.basis_head.basis_stride / 2), \
             int(basis_pred.shape[-1] * self.basis_head.basis_stride / 2)), gt_labels, gt_masks)
-        losses.update(loss_segm)                
+        losses.update(loss_segm)
+
+        # atten pred
+        # pos_rrois = dbbox2roi(
+        #     [res.pos_bboxes for res in sampling_results])
+        # atten_feats = self.atten_rroi_extractor(
+        #             x[:self.atten_rroi_extractor.num_inputs], pos_rrois)
+        # atten_maps = self.atten_head(atten_feats)
+        # base_maps = self.blender.crop_segm(basis_pred, pos_rrois)
+        # mask_pred = self.blender.merge_bases(base_maps, atten_maps)
+        # mask_targets = self.atten_head.get_rotate_target(
+        #         sampling_results, gt_masks, self.train_cfg.rcnn[1])
+        # loss_mask = self.blender.loss(mask_pred, mask_targets)
+        # losses.update(loss_mask)
+
         # atten pred
         pos_rrois = dbbox2roi(
             [res.pos_bboxes for res in sampling_results])
         atten_feats = self.atten_rroi_extractor(
                     x[:self.atten_rroi_extractor.num_inputs], pos_rrois)
-        atten_maps = self.atten_head(atten_feats)
+        atten_pred, atten_maps = self.atten_head(atten_feats)
+        # add atten loss
+        atten_target = self.atten_head.get_rotate_target(
+                sampling_results, gt_masks, self.train_cfg.rcnn[0])
+        loss_atten = self.atten_head.loss(atten_pred.squeeze(1), atten_target)
+        losses.update(loss_atten)
+        # mask loss
         base_maps = self.blender.crop_segm(basis_pred, pos_rrois)
         mask_pred = self.blender.merge_bases(base_maps, atten_maps)
         mask_targets = self.atten_head.get_rotate_target(
@@ -363,7 +383,7 @@ class RotateBlendMaskRCNN(BaseDetectorNew, RPNTestMixin):
                         x[:self.atten_rroi_extractor.num_inputs], rrois)
             atten_maps = self.atten_head(atten_feats)
             segm_result = self.blender.get_seg_masks(basis_pred, atten_maps, 
-                _rects, det_labels, self.test_cfg.rcnn, 
+                rrois[:,1:], det_labels, self.test_cfg.rcnn, 
                 ori_shape, scale_factor, rescale)
         return segm_result
 

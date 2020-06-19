@@ -7,5 +7,6 @@ from .pfpn_segm import PFPNSegmHead
 from .blender import Blender
 from .protonet_head import ProtoNetHead
 from .atten_fcn_head import AttenFCNHead
+from .atten_fcn_loss_head import AttenFCNLossHead
 __all__ = ['FCNMaskHead', 'HTCMaskHead', 'FusedSemanticHead', 'MaskIoUHead', 'BlendMaskHead', 'PFPNSegmHead', 'Blender',
-    "ProtoNetHead", "AttenFCNHead"]
+    "ProtoNetHead", "AttenFCNHead", "AttenFCNLossHead"]
