@@ -198,7 +198,7 @@ def main():
         print('\nwriting results to {}'.format(args.out))
         mmcv.dump(outputs, args.out)
 
-        # import pickle
+        import pickle
         # F=open(r'/disk2/zzr/work_dirs/rotated_blend_mask_rcnn_isaid_num_bases_4/epoch_12_test_on_test_opencv_remap.pkl','rb')
         # outputs = pickle.load(F)
         outputs = tran2obb_results(outputs)
