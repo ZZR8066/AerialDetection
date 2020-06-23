@@ -113,12 +113,12 @@ test_cfg = dict(
         mask_thr_binary=0.5))
 # dataset settings
 dataset_type = 'iSAIDDataset'
-data_root = '/disk1/zzr/dataset_isaid/'
+data_root = '/disk2/zzr/dataset_isaid/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
     imgs_per_gpu=2,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'train/instancesonly_filtered_train_useful_standard.json',
@@ -153,7 +153,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='SGD', lr=0.00125*3, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.00125*2, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
@@ -172,10 +172,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 24
+total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/disk1/zzr/work_dirs/mask_rcnn_r50_fpn_isaid'
+work_dir = '/disk2/zzr/work_dirs/mask_rcnn_r50_fpn_isaid_baseline'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
