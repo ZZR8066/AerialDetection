@@ -199,7 +199,7 @@ def main():
         mmcv.dump(outputs, args.out)
 
         # import pickle
-        # F=open(r'/disk1/zzr/work_dirs/multi_mask_enlarge_isaid_without_adaptive/test_out_epoch_12.pkl','rb')
+        # F=open(r'/disk2/zzr/work_dirs/rotated_blend_mask_rcnn_isaid_num_bases_4/epoch_12_test_on_test_opencv_remap.pkl','rb')
         # outputs = pickle.load(F)
         outputs = tran2obb_results(outputs)
         # outputs = tran2mix_results(outputs)

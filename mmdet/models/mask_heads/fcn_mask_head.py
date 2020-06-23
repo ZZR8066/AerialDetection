@@ -4,7 +4,7 @@ import numpy as np
 import pycocotools.mask as mask_util
 import torch
 import torch.nn as nn
-
+from mmdet.ops.roi_align_rotated import roi_align_rotated_cuda
 from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule
@@ -127,6 +127,33 @@ class FCNMaskHead(nn.Module):
         mask_rotate_targets = mask_rotate_target(pos_proposals, pos_assigned_gt_inds,
                                    gt_masks, rcnn_train_cfg)
         return mask_rotate_targets
+
+    # def get_rotate_target(self, sampling_results, gt_masks_list, rcnn_train_cfg):
+    #     pos_proposals_list = [res.pos_bboxes for res in sampling_results]
+    #     pos_assigned_gt_inds_list = [
+    #         res.pos_assigned_gt_inds for res in sampling_results
+    #     ]
+    #     mask_size = rcnn_train_cfg.mask_size
+    #     mask_targets_list = []
+    #     for pos_proposals, pos_assigned_gt_inds, gt_masks \
+    #         in zip(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list):
+    #         num_pos = pos_proposals.size(0)
+    #         mask_targets = []
+    #         if num_pos > 0:
+    #             for i in range(num_pos):
+    #                 gt_mask = gt_masks[pos_assigned_gt_inds[i]]
+    #                 gt_mask = torch.from_numpy(gt_mask[np.newaxis, \
+    #                     np.newaxis, :, :]).float().to(pos_proposals.device)
+    #                 x,y,w,h,theta = pos_proposals[i, :]
+    #                 roi = torch.tensor([[0.0, x, y, w, h, theta]]).to(pos_proposals.device)
+    #                 target = pos_proposals.new_zeros(1, 1, mask_size, mask_size)
+    #                 roi_align_rotated_cuda.forward(gt_mask, roi, mask_size, mask_size, 1.0, 2, target)
+    #                 mask_targets.append(target.squeeze())
+    #                 # mask_targets.append(torch.where(target>0.5,target.new_full(target.shape, 1),target.new_full(target.shape, 0)))
+    #         else:
+    #             mask_targets = pos_proposals.new_zeros((0, mask_size, mask_size))
+    #         mask_targets_list.append(torch.stack(mask_targets))
+    #     return torch.cat(mask_targets_list)
 
     def get_rotate_fix_target(self, sampling_results, gt_masks, 
                                 rcnn_train_cfg, out_w, out_h):

@@ -2,9 +2,11 @@
 model = dict(
     type='RotateBlendMaskRCNN',
     pretrained='/disk2/zzr/resnet50.pth',
+    # pretrained='/disk2/zzr/resnet101.pth',
     backbone=dict(
         type='ResNet',
         depth=50,
+        # depth=101,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
@@ -167,7 +169,7 @@ test_cfg = dict(
     rcnn=dict(
         score_thr = 0.05, 
         nms = dict(type='py_cpu_nms_poly_fast', iou_thr=0.3), 
-        max_per_img = 1000,
+        max_per_img = 100,
         mask_thr_binary=0.5)
         )
 # dataset settings
@@ -204,8 +206,10 @@ data = dict(
         with_label=True),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'val/instancesonly_filtered_val_standard.json',
-        img_prefix=data_root + 'val/images/',
+        # ann_file=data_root + 'val/instancesonly_filtered_val_standard.json',
+        # img_prefix=data_root + 'val/images/',
+        ann_file=data_root + 'test/test_info.json',
+        img_prefix=data_root + 'test/images/',
         img_scale=(800, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,

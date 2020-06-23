@@ -127,7 +127,7 @@ class RotateMaskRCNN(BaseDetectorNew, RPNTestMixin):
 
         # trans gt_masks to gt_obbs
         # gt_obbs = gt_mask_bp_obbs_list(gt_masks)
-        gt_obb_masks = mask2obb_mask(gt_bboxes, gt_masks)
+        gt_obb_masks = mask2obb_mask(gt_bboxes, gt_masks, enlarge_pixel=2)
         gt_obbs = gt_mask_bp_obbs_list(gt_obb_masks)
         
         # RPN forward and loss
@@ -243,8 +243,6 @@ class RotateMaskRCNN(BaseDetectorNew, RPNTestMixin):
             for name, value in loss_rbbox.items():
                 losses['s{}.{}'.format(1, name)] = (value)
                 
-        for i in range(len(sampling_results)):
-            sampling_results[i].pos_bboxes[:, 2:4] *= self.train_cfg.rcnn[1].expand_scale
         pos_rrois = dbbox2roi(
             [res.pos_bboxes for res in sampling_results])
         mask_feats = self.mask_rroi_extractor(
@@ -312,7 +310,7 @@ class RotateMaskRCNN(BaseDetectorNew, RPNTestMixin):
         else:
             segm_results = self.simple_test_rotate_mask(x, img_meta, 
                             det_rbboxes, det_labels, rescale=rescale)
-        return bbox_results, segm_results, rbbox_results
+        return bbox_results, rbbox_results, segm_results
         
     def simple_test_rotate_mask(self, x, img_meta, 
             det_rbboxes, det_labels, rescale=False):
@@ -326,9 +324,9 @@ class RotateMaskRCNN(BaseDetectorNew, RPNTestMixin):
             _rbboxes = (
                 det_rbboxes[:, :8] * scale_factor if rescale else det_rbboxes)
             _rects = rbboxes2rects(_rbboxes[:, :8])
-            mask_rois = dbbox2roi([_rects])
-            mask_feats = self.mask_roi_extractor(
-                x[:len(self.mask_roi_extractor.featmap_strides)], mask_rois)
+            mask_rrois = dbbox2roi([_rects])
+            mask_feats = self.mask_rroi_extractor(
+                x[:len(self.mask_rroi_extractor.featmap_strides)], mask_rrois)
             if self.with_shared_head:
                 mask_feats = self.shared_head(mask_feats)
             mask_pred = self.mask_head(mask_feats)

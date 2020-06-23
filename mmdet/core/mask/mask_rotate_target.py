@@ -18,9 +18,9 @@ def crop_rotate_mask(gt_mask, x,y,w,h,theta):
     cols_start = int(cols / 2)
     expand_layer[rows_start:rows_start+rows, cols_start:cols_start+cols]=gt_mask
     M = cv2.getRotationMatrix2D((x+cols_start,y+rows_start),theta*180/np.pi,1)
-    dst = cv2.warpAffine(expand_layer,M,expand_layer.shape,borderValue=0)
+    dst = cv2.warpAffine(expand_layer,M,expand_layer.shape[::-1],borderValue=0)
     M = np.float32([[1.0,0,-x+w/2-cols_start],[0,1,-y+h/2-rows_start]])
-    dst = cv2.warpAffine(dst,M,dst.shape,borderValue=0)
+    dst = cv2.warpAffine(dst,M,dst.shape[::-1],borderValue=0)
     dst = dst[:np.int(h), :np.int(w)]
     return dst
 

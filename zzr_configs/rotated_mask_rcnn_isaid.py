@@ -1,10 +1,12 @@
 # model settings
 model = dict(
     type='RotateMaskRCNN',
-    pretrained='modelzoo://resnet50',
+    # pretrained='/disk2/zzr/resnet50.pth',
+    pretrained='/disk2/zzr/resnet101.pth',
     backbone=dict(
         type='ResNet',
-        depth=50,
+        # depth=50,
+        depth=101,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
@@ -132,7 +134,6 @@ train_cfg = dict(
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True),
             mask_size=28,
-            expand_scale=1.1,
             pos_weight=-1,
             debug=False)
     ])
@@ -152,7 +153,7 @@ test_cfg = dict(
         )
 # dataset settings
 dataset_type = 'iSAIDDataset'
-data_root = '/disk1/zzr/dataset_isaid/'
+data_root = '/disk2/zzr/dataset_isaid/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
@@ -216,7 +217,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/rotated_mask_rcnn_isaid'
+work_dir = '/disk2/zzr/work_dirs/rotated_mask_rcnn_r101_isaid_enlarge_2_pixel'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
