@@ -45,7 +45,7 @@ model = dict(
             type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
         loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)),
     basis_head=dict(
-        type='ProtoNetHead',
+        type='PFPNHead',
         num_levels=4,
         num_bases=4,
         basis_stride=4,
@@ -60,11 +60,12 @@ model = dict(
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     atten_head=dict(
-        type='FCNMaskHead',
+        type='AttenFCNLossHead',
         num_convs=4,
         in_channels=256,
         conv_out_channels=256,
-        num_classes=16,
+        num_classes=4,
+        loss_atten_weight=0.3,
         loss_mask=dict(
             type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
     blender=dict(
@@ -172,7 +173,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='SGD', lr=0.00125*2, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.00125, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(

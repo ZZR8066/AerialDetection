@@ -134,7 +134,8 @@ class PFPNHead(nn.Module):
             if i == 0:
                 x = self.refine[i](features[i])
             else:
-                x += self.refine[i](features[i])
+                xp = self.refine[i](features[i])
+                x = x + xp
         bases_out = self.tower(x)
         return bases_out
 

@@ -193,7 +193,7 @@ class BlendMaskRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         # add atten loss
         atten_targets = self.atten_head.get_target(
             sampling_results, gt_masks, self.train_cfg.rcnn)
-        loss_atten = self.atten_head.loss(atten_pred.squeeze(1), atten_target)
+        loss_atten = self.atten_head.loss(atten_pred.squeeze(1), atten_targets)
         losses.update(loss_atten)
         # mask loss
         base_maps = self.blender.crop_segm(basis_pred, pos_rois)
