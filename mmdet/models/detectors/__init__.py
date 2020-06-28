@@ -24,11 +24,13 @@ from .blend_mask import BlendMask
 from .multi_mask_adaptive import MultiMaskAdaptive
 from .rpfpn_mask import RPFPNMask
 from .rotated_blend_mask import RotateBlendMaskRCNN
+from .blend_mask_rcnn import BlendMaskRCNN
+
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN', 'MaskScoringRCNN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
     'RetinaNet', 'FCOS', 'FasterRCNNOBB', 'TwoStageDetectorRbbox', 'RPFPNMask',
     'RoITransformer', 'FasterRCNNHBBOBB', 'RotateAdaptivePANet', 'BlendMask', 'MultiMaskAdaptive',
     'SingleStageDetectorRbbox', 'RetinaNetRbbox', 'RotateMaskRCNN', 'MultiMask', 'MultiMaskScore', 
-    'RotateBlendMaskRCNN'
+    'RotateBlendMaskRCNN', 'BlendMaskRCNN'
 ]
