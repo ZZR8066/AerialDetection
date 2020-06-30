@@ -1,12 +1,12 @@
 # model settings
 model = dict(
     type='RotateBlendMaskRCNN',
-    pretrained='/disk2/zzr/resnet50.pth',
-    # pretrained='/disk2/zzr/resnet101.pth',
+    # pretrained='/disk2/zzr/resnet50.pth',
+    pretrained='/disk2/zzr/resnet101.pth',
     backbone=dict(
         type='ResNet',
-        depth=50,
-        # depth=101,
+        # depth=50,
+        depth=101,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
@@ -240,7 +240,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/disk2/zzr/work_dirs/rotated_blend_mask_rcnn_isaid_num_bases_4_add_atten_loss_used_PFPN'
+work_dir = '/disk2/zzr/work_dirs/rotated_blend_mask_rcnn_r101_isaid_num_bases_4_add_atten_loss_used_PFPN'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

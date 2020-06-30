@@ -216,15 +216,30 @@ class BlendMaskRCNN(BaseDetector, RPNTestMixin, BBoxTestMixin,
         bbox_results = bbox2result(det_bboxes, det_labels,
                                    self.bbox_head.num_classes)
 
-        if not self.with_mask:
-            return bbox_results
-        else:
-            segm_results = self.simple_test_mask(
-                x, img_meta, det_bboxes, det_labels, rescale=rescale)
-            return bbox_results, segm_results
+        segm_results = self.simple_test_mask(
+            x, img_meta, det_bboxes, det_labels, rescale=rescale)
+        return bbox_results, segm_results
     
-    def simple_test_mask(x, img_meta, det_bboxes, det_labels, rescale=False):
-        pass
+    def simple_test_mask(self, x, img_meta, 
+            det_bboxes, det_labels, rescale=False):
+        ori_shape = img_meta[0]['ori_shape']
+        scale_factor = img_meta[0]['scale_factor']
+        if det_bboxes.shape[0] == 0:
+            segm_result = [[] for _ in range(self.blender.num_classes - 1)]
+        else:
+            basis_pred = self.basis_head.forward(x)
+            _bboxes = (
+                det_bboxes[:, :4] * scale_factor if rescale else det_bboxes)
+            mask_rois = bbox2roi([_bboxes])
+            atten_feats = self.atten_roi_extractor(
+                x[:len(self.atten_roi_extractor.featmap_strides)], mask_rois)
+            _, atten_maps = self.atten_head(atten_feats)
+            base_maps = self.blender.crop_segm(basis_pred, mask_rois)
+            mask_pred = self.blender.merge_bases(base_maps, atten_maps)
+            segm_result = self.blender.get_seg_masks(mask_pred, 
+                    _bboxes, det_labels, self.test_cfg.rcnn, ori_shape,
+                    scale_factor, rescale)
+        return segm_result
         
     def aug_test(self, imgs, img_metas, rescale=False):
         pass

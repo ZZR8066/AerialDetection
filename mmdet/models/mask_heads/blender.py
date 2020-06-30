@@ -117,46 +117,83 @@ class Blender(nn.Module):
 
         return cls_segms
 
-    def get_seg_masks(self, basis_pred, atten_maps, det_rects, det_labels, rcnn_test_cfg,
+    def get_seg_masks(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,
                       ori_shape, scale_factor, rescale):
+        if isinstance(mask_pred, torch.Tensor):
+            mask_pred = mask_pred.sigmoid().cpu().numpy()
+        assert isinstance(mask_pred, np.ndarray)
 
         cls_segms = [[] for _ in range(self.num_classes - 1)]
-        rects  = det_rects
-        labels = det_labels
-
+        bboxes = det_bboxes.cpu().numpy()[:, :4]
+        labels = det_labels.cpu().numpy()
+        
         if rescale:
             img_h, img_w = ori_shape[:2]
         else:
             img_h = np.round(ori_shape[0] * scale_factor).astype(np.int32)
             img_w = np.round(ori_shape[1] * scale_factor).astype(np.int32)
             scale_factor = 1.0
-        
-        rects[:, :4] = rects[:, :4] / scale_factor
-        # basis_pred = F.interpolate(basis_pred, (img_h, img_w), mode="bilinear", align_corners=False)
-        feat_h = basis_pred.shape[-2]
-        feat_w = basis_pred.shape[-1]
-        scale_x = feat_w / img_w
-        scale_y = feat_h / img_h
-        rects[:,0] *= scale_x
-        rects[:,1] *= scale_y
-        rects[:,2] *= scale_x
-        rects[:,3] *= scale_y
-        atten_maps = paste_rotate_masks_in_image(atten_maps, rects, feat_h, feat_w)
-        mask_pred = self.merge_bases(basis_pred, atten_maps)
-        mask_pred = mask_pred.sigmoid()
-        mask_pred[~(paste_rotate_masks_in_image(atten_maps.new_ones(atten_maps.size())\
-            , rects, feat_h, feat_w).to(torch.bool)[:,0,:,:])] = 0.0
-        
-        for i in range(mask_pred.shape[0]):
-            label = labels[i]
-            im_mask = mask_pred[i,:,:].cpu().numpy()
-            im_mask = mmcv.imresize(im_mask,(img_w, img_h))
-            im_mask = (im_mask > rcnn_test_cfg.mask_thr_binary).astype('uint8')
 
+        for i in range(bboxes.shape[0]):
+            bbox = (bboxes[i, :] / scale_factor).astype(np.int32)
+            label = labels[i]
+            w = max(bbox[2] - bbox[0] + 1, 1)
+            h = max(bbox[3] - bbox[1] + 1, 1)
+
+            mask_pred_ = mask_pred[i, :, :]
+            
+            im_mask = np.zeros((img_h, img_w), dtype=np.uint8)
+
+            bbox_mask = mmcv.imresize(mask_pred_, (w, h))
+            bbox_mask = (bbox_mask > rcnn_test_cfg.mask_thr_binary).astype(
+                np.uint8)
+            im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
             rle = mask_util.encode(
                 np.array(im_mask[:, :, np.newaxis], order='F'))[0]
             cls_segms[label].append(rle)
+
         return cls_segms
+
+    # def get_seg_masks(self, basis_pred, atten_maps, det_rects, det_labels, rcnn_test_cfg,
+    #                   ori_shape, scale_factor, rescale):
+
+    #     cls_segms = [[] for _ in range(self.num_classes - 1)]
+    #     rects  = det_rects
+    #     labels = det_labels
+
+    #     if rescale:
+    #         img_h, img_w = ori_shape[:2]
+    #     else:
+    #         img_h = np.round(ori_shape[0] * scale_factor).astype(np.int32)
+    #         img_w = np.round(ori_shape[1] * scale_factor).astype(np.int32)
+    #         scale_factor = 1.0
+        
+    #     rects[:, :4] = rects[:, :4] / scale_factor
+    #     # basis_pred = F.interpolate(basis_pred, (img_h, img_w), mode="bilinear", align_corners=False)
+    #     feat_h = basis_pred.shape[-2]
+    #     feat_w = basis_pred.shape[-1]
+    #     scale_x = feat_w / img_w
+    #     scale_y = feat_h / img_h
+    #     rects[:,0] *= scale_x
+    #     rects[:,1] *= scale_y
+    #     rects[:,2] *= scale_x
+    #     rects[:,3] *= scale_y
+    #     atten_maps = paste_rotate_masks_in_image(atten_maps, rects, feat_h, feat_w)
+    #     mask_pred = self.merge_bases(basis_pred, atten_maps)
+    #     mask_pred = mask_pred.sigmoid()
+    #     mask_pred[~(paste_rotate_masks_in_image(atten_maps.new_ones(atten_maps.size())\
+    #         , rects, feat_h, feat_w).to(torch.bool)[:,0,:,:])] = 0.0
+        
+    #     for i in range(mask_pred.shape[0]):
+    #         label = labels[i]
+    #         im_mask = mask_pred[i,:,:].cpu().numpy()
+    #         im_mask = mmcv.imresize(im_mask,(img_w, img_h))
+    #         im_mask = (im_mask > rcnn_test_cfg.mask_thr_binary).astype('uint8')
+
+    #         rle = mask_util.encode(
+    #             np.array(im_mask[:, :, np.newaxis], order='F'))[0]
+    #         cls_segms[label].append(rle)
+    #     return cls_segms
 
 import cv2
 import torch

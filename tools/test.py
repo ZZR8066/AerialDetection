@@ -41,8 +41,8 @@ def single_gpu_test(model, data_loader, show=False, log_dir=None):
 
         if show:
             # show_bbox(data, result, dataset.img_norm_cfg, dataset.CLASSES)
-            # show_mask(data, result[:2], dataset.img_norm_cfg, dataset.CLASSES)
-            show_rmask(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
+            show_mask(data, result[:2], dataset.img_norm_cfg, dataset.CLASSES)
+            # show_rmask(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
             # model.module.show_result(data, result, dataset.img_norm_cfg)
 
         batch_size = data['img'][0].size(0)

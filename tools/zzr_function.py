@@ -158,7 +158,7 @@ def show_mask(data,result, img_norm_cfg, class_names,
                     0, 256, (1, 3), dtype=np.uint8)
                 mask = maskUtils.decode(segms[i]).astype(np.bool)
                 img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
-        # draw rbbox
+        # draw bbox
         labels = [
             np.full(bbox.shape[0], i, dtype=np.int32)
                 for i, bbox in enumerate(bbox_result)

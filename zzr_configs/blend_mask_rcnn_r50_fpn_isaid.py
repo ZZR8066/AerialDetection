@@ -121,15 +121,19 @@ train_cfg = dict(
 test_cfg = dict(
     rpn=dict(
         nms_across_levels=False,
-        nms_pre=2000,
-        nms_post=2000,
-        max_num=2000,
+        # nms_pre=2000,
+        # nms_post=2000,
+        # max_num=2000,
+        nms_pre=1000,
+        nms_post=1000,
+        max_num=1000,
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
         score_thr=0.05,
         nms=dict(type='nms', iou_thr=0.5),
-        max_per_img=1000,
+        # max_per_img=1000,
+        max_per_img=100,
         mask_thr_binary=0.5))
 # dataset settings
 dataset_type = 'iSAIDDataset'
