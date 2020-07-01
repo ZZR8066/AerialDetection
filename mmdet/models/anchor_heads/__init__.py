@@ -8,9 +8,9 @@ from .ga_retina_head import GARetinaHead
 from .ssd_head import SSDHead
 from .anchor_head_rbbox import AnchorHeadRbbox
 from .retina_head_rbbox import RetinaHeadRbbox
-
+from .atss_head import ATSSHead
 __all__ = [
     'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption', 'RPNHead',
     'GARPNHead', 'RetinaHead', 'GARetinaHead', 'SSDHead', 'FCOSHead',
-    'AnchorHeadRbbox',
+    'AnchorHeadRbbox', 'ATSSHead'
 ]
