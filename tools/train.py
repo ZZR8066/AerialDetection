@@ -40,6 +40,9 @@ def parse_args():
 
 
 def main():
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+
     args = parse_args()
 
     cfg = Config.fromfile(args.config)

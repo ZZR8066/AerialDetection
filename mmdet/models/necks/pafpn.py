@@ -6,7 +6,7 @@ from ..utils import ConvModule
 from ..registry import NECKS
 
 @NECKS.register_module
-class PANet(nn.Module):
+class PAFPN(nn.Module):
 
     def __init__(self,
                  in_channels,
@@ -17,7 +17,7 @@ class PANet(nn.Module):
                  add_extra_convs=False,
                  normalize=None,
                  activation=None):
-        super(PANet, self).__init__()
+        super(PAFPN, self).__init__()
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
         self.out_channels = out_channels

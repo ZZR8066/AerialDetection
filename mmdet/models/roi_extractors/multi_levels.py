@@ -24,6 +24,7 @@ class MultiRoIExtractor(nn.Module):
     def __init__(self,
                  roi_layer,
                  out_channels,
+                 panet_channels,
                  featmap_strides,
                  finest_scale=56):
         super(MultiRoIExtractor, self).__init__()
@@ -31,6 +32,14 @@ class MultiRoIExtractor(nn.Module):
         self.out_channels = out_channels
         self.featmap_strides = featmap_strides
         self.finest_scale = finest_scale
+
+        self.fcs_panet = nn.ModuleList()
+        for i in range(len(featmap_strides)):
+            self.fcs_panet.append(
+                nn.Sequential(
+                    nn.Linear(out_channels * roi_layer['out_size']**2, \
+                        panet_channels),
+                    nn.ReLU(inplace=True)))
 
     @property
     def num_inputs(self):
@@ -60,12 +69,13 @@ class MultiRoIExtractor(nn.Module):
             roi_feats_t = self.roi_layers[i](feats[i], rois)
             roi_feats.append(roi_feats_t)
 
-        # max pool
-        feature_size = roi_feats[0].size()
+        # fused and max pool
+        # feature_size = roi_feats[0].size()
         roi_feats = [var.view(var.size(0),-1) for var in roi_feats]
+        for i in range(num_levels):
+            roi_feats[i] = self.fcs_panet[i](roi_feats[i])
         for i in range(1, num_levels):
             roi_feats[0] = torch.max(roi_feats[0], roi_feats[i])
         roi_feats = roi_feats[0]
-        roi_feats = roi_feats.view(feature_size)
-        
+        # roi_feats = roi_feats.view(feature_size)
         return roi_feats

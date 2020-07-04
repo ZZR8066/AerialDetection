@@ -1,18 +1,16 @@
 # model settings
 model = dict(
-    type='RotateBlendMaskRCNN',
-    # pretrained='/disk2/zzr/resnet50.pth',
-    pretrained='/disk2/zzr/resnet101.pth',
+    type='RoITransformer',
+    pretrained='/disk2/zzr/resnet50.pth',
     backbone=dict(
         type='ResNet',
-        # depth=50,
-        depth=101,
+        depth=50,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
         style='pytorch'),
     neck=dict(
-        type='FPN',
+        type='PAFPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
         num_outs=5),
@@ -29,80 +27,55 @@ model = dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0)),
     bbox_roi_extractor=dict(
-        type='SingleRoIExtractor',
+        type='MultiRoIExtractor',
+        panet_channels=1024,
+        # type='SingleRoIExtractor',
         roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     bbox_head=dict(
-        type='SharedFCBBoxHeadRbbox',
+        type='FusedFCBBoxHeadRbbox',
+        # type='SharedFCBBoxHeadRbbox',
         num_fcs=2,
         in_channels=256,
         fc_out_channels=1024,
         roi_feat_size=7,
-        num_classes=16,
+        num_classes=17,
         target_means=[0., 0., 0., 0., 0.],
         target_stds=[0.1, 0.1, 0.2, 0.2, 0.1],
         reg_class_agnostic=True,
         with_module=False,
+        hbb_trans='hbb2obb_v2',
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
         loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)),
     rbbox_roi_extractor=dict(
-        type='RboxSingleRoIExtractor',
+        type='RboxMultiRoIExtractor',
+        panet_channels=1024,
+        # type='RboxSingleRoIExtractor',
         roi_layer=dict(type='RoIAlignRotated', out_size=7, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     rbbox_head = dict(
-        type='SharedFCBBoxHeadRbbox',
+        type='FusedFCBBoxHeadRbbox',
+        # type='SharedFCBBoxHeadRbbox',
         num_fcs=2,
         in_channels=256,
         fc_out_channels=1024,
         roi_feat_size=7,
-        num_classes=16,
+        num_classes=17,
         target_means=[0., 0., 0., 0., 0.],
         target_stds=[0.05, 0.05, 0.1, 0.1, 0.05],
         reg_class_agnostic=False,
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)),
-    basis_head=dict(
-        type='PFPNHead',
-        num_levels=4,
-        num_bases=4,
-        basis_stride=4,
-        num_classes=16,
-        planes=128,
-        in_channels=256,
-        segm_loss_weight=0.3
-    ),
-    atten_rroi_extractor=dict(
-        type='RboxSingleRoIExtractor',
-        roi_layer=dict(type='RoIAlignRotated', out_size=14, sample_num=2),
-        out_channels=256,
-        featmap_strides=[4, 8, 16, 32]),
-    atten_head=dict(
-        type='AttenFCNLossHead',
-        num_convs=4,
-        in_channels=256,
-        conv_out_channels=256,
-        num_classes=4,
-        loss_atten_weight=0.3,
-        loss_mask=dict(
-            type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
-    blender=dict(
-        type='Blender',
-        num_classes=16,
-        base_size=56,
-        rroi_extractor=dict(
-            type='RboxSingleRoIExtractor',
-            roi_layer=dict(type='RoIAlignRotated', out_size=56, sample_num=2),
-            out_channels=4,
-            featmap_strides=[2])))
+        loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))
+    )
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
         assigner=dict(
-            type='MaxIoUAssigner',
+            type='MaxIoUAssignerCy',
             pos_iou_thr=0.7,
             neg_iou_thr=0.3,
             min_pos_iou=0.3,
@@ -126,7 +99,7 @@ train_cfg = dict(
     rcnn=[
         dict(
             assigner=dict(
-                type='MaxIoUAssigner',
+                type='MaxIoUAssignerCy',
                 pos_iou_thr=0.5,
                 neg_iou_thr=0.5,
                 min_pos_iou=0.5,
@@ -137,7 +110,6 @@ train_cfg = dict(
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True),
-            mask_size=28,
             pos_weight=-1,
             debug=False),
         dict(
@@ -153,13 +125,12 @@ train_cfg = dict(
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True),
-            mask_size=56,
-            expand_scale=1.0,
             pos_weight=-1,
             debug=False)
     ])
 test_cfg = dict(
     rpn=dict(
+        # TODO: test nms 2000
         nms_across_levels=False,
         nms_pre=2000,
         nms_post=2000,
@@ -167,37 +138,37 @@ test_cfg = dict(
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
-        score_thr = 0.05, 
-        nms = dict(type='py_cpu_nms_poly_fast', iou_thr=0.3), 
-        max_per_img = 100,
-        mask_thr_binary=0.5)
-        )
+        # score_thr=0.05, nms=dict(type='py_cpu_nms_poly_fast', iou_thr=0.1), max_per_img=1000)
+        score_thr = 0.05, nms = dict(type='py_cpu_nms_poly_fast', iou_thr=0.1), max_per_img = 2000)
+# soft-nms is also supported for rcnn testing
+    # e.g., nms=dict(type='soft_nms', iou_thr=0.5, min_score=0.05)
+)
 # dataset settings
-dataset_type = 'iSAIDDataset'
-data_root = '/disk2/zzr/dataset_isaid/'
+dataset_type = 'DOTA1_5Dataset_v3'
+data_root = '/disk2/zzr/dataset_dota1_5/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
-    imgs_per_gpu=1,
+    imgs_per_gpu=2,
     workers_per_gpu=0,
-    # workers_per_gpu=0,
     train=dict(
         type=dataset_type,
-        balance_cat=False,
-        ann_file=data_root + 'train/instancesonly_filtered_train_useful_standard.json',
-        img_prefix=data_root + 'train/images/',
-        img_scale=[(400,400),(600,600),(800, 800),(1000,1000),(1200,1200)],
+        ann_file=data_root + 'trainval1024_obb/DOTA1_5_trainval1024.json',
+        img_prefix=data_root + 'trainval1024_obb/images/',
+        img_scale=(1024, 1024),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0.5,
         with_mask=True,
         with_crowd=True,
-        with_label=True),
+        with_label=True,
+        rotate_aug=dict(border_value=0, small_filter=6)
+    ),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'val/instancesonly_filtered_val_standard.json',
-        img_prefix=data_root + 'val/images/',
-        img_scale=(800, 800),
+        ann_file=data_root + 'trainval1024_obb/DOTA1_5_trainval1024.json',
+        img_prefix=data_root + 'trainval1024_obb/images/',
+        img_scale=(1024, 1024),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0,
@@ -206,11 +177,11 @@ data = dict(
         with_label=True),
     test=dict(
         type=dataset_type,
-        # ann_file=data_root + 'val/instancesonly_filtered_val_standard.json',
-        # img_prefix=data_root + 'val/images/',
-        ann_file=data_root + 'test/test_info.json',
-        img_prefix=data_root + 'test/images/',
-        img_scale=(800, 800),
+        ann_file=data_root + 'test1024_obb/DOTA1_5_test1024.json',
+        img_prefix=data_root + 'test1024_obb/images',
+        # ann_file = data_root + 'test1024_ms/DOTA1_5_test1024_allms.json',
+        # img_prefix = data_root + 'test1024_ms/images',
+        img_scale=(1024, 1024),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0,
@@ -218,7 +189,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-optimizer = dict(type='SGD', lr=0.00125, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.00125*2, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
@@ -226,8 +197,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[16, 22])
-checkpoint_config = dict(interval=1)
+    step=[8, 11])
+checkpoint_config = dict(interval=2)
 # yapf:disable
 log_config = dict(
     interval=50,
@@ -237,10 +208,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 24
+total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/disk2/zzr/work_dirs/rotated_blend_mask_rcnn_r101_isaid_num_bases_4_add_atten_loss_used_PFPN_with_ms'
+work_dir = '/disk2/zzr/work_dirs/RoITrans_r50_pafpn_1x_dota1_5'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

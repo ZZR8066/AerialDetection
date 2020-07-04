@@ -10,7 +10,7 @@ import dota_utils as util
 import re
 import time
 import polyiou
-from poly_nms_gpu.nms_wrapper import poly_nms_gpu
+# from poly_nms_gpu.nms_wrapper import poly_nms_gpu
 import pdb
 
 ## the thresh for nms when merge image
@@ -197,10 +197,12 @@ if __name__ == '__main__':
     #             r'/home/dingjian/data/ODAI/ODAI_submmit/baseline/task1_merge2')
     # mergebypoly(r'/home/dingjian/Documents/Research/experiments/rotateanchorrotateregion/40_angle_agnostic',
     #             r'/home/dingjian/Documents/Research/experiments/rotateanchorrotateregion/40_angle_agnostic_0.1_nms')
-    mergebypoly(r'/home/dingjian/Documents/Research/experiments/Deform_FPN_Naive_poly/Task1_results_epoch12',
-                r'/home/dingjian/Documents/Research/experiments/Deform_FPN_Naive_poly/Task_results_epoch12_0.1_nms')
+    # mergebypoly(r'/home/dingjian/Documents/Research/experiments/Deform_FPN_Naive_poly/Task1_results_epoch12',
+    #             r'/home/dingjian/Documents/Research/experiments/Deform_FPN_Naive_poly/Task_results_epoch12_0.1_nms')
     # mergebyrec(r'/home/dingjian/Documents/Research/experiments/Deform_FPN_HBB/Task2_results',
     #            r'/home/dingjian/Documents/Research/experiments/Deform_FPN_HBB/Task2_results_0.3_nms')
+    mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_fpn_1x_dota1_5/Task1_results_epoch12',
+                r'/disk2/zzr/work_dirs/RoITrans_r50_fpn_1x_dota1_5/Task1_merge_results_epoch12')
     elapsed = (time.clock() - start)
     print("Time used:", elapsed)
     # test_nms()

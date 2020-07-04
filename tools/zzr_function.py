@@ -4,6 +4,31 @@ import numpy as np
 import pycocotools.mask as maskUtils
 from mmcv.image import imread, imwrite
 from mmdet.core import tensor2imgs, get_classes
+import os
+
+cls_names = [
+	'plane', 'baseball-diamond', 'bridge', 'ground-track-field', 'small-vehicle', \
+	'large-vehicle', 'ship', 'tennis-court','basketball-court', 'storage-tank',  \
+	'soccer-ball-field', 'roundabout', 'harbor', 'swimming-pool', 'helicopter', 'container-crane']
+
+def DotaResult2Submit(file_name, result, save_dir):
+    classes_all=[cls_names[var] for var in range(len(cls_names))]
+    files=[save_dir + 'Task1_' + var + '.txt' for var in classes_all]
+    files=[open(var,'a') for var in files]
+    
+    for i, cur_class_polygons in enumerate(result):
+        if len(cur_class_polygons) == 0:
+            continue
+        else:
+            f_class=files[i]
+            for polygon in cur_class_polygons:
+                score = polygon[-1]
+                polygon = polygon[:8].reshape(4,2)
+                f_class.write(os.path.basename(file_name).split('.')[0] \
+                    + ' %f %f %f %f %f %f %f %f %f\n' % (score, \
+                    polygon[0,0],polygon[0,1],polygon[1,0],polygon[1,1],\
+                    polygon[2,0],polygon[2,1],polygon[3,0],polygon[3,1],))
+
 
 def assembel_mask(results):
     assembel_masks = []
@@ -117,7 +142,7 @@ def show_rmask(data,result, img_norm_cfg, class_names,
         rbboxes = rbboxes[inds, :8]
         labels = labels[inds]
         
-        rbbox_color = (0, 255, 0)
+        rbbox_color = (0, 0, 255)
         text_color = (0, 255, 0)
         font_scale = 0.5
         
@@ -125,12 +150,56 @@ def show_rmask(data,result, img_norm_cfg, class_names,
             bbox_int = bbox.astype(np.int32)
             rbbox_int = rbbox.astype(np.int32)
             rbbox_int = rbbox_int.reshape(4,2)
-            cv2.drawContours(img,[rbbox_int],0,rbbox_color,1)
+            cv2.drawContours(img,[rbbox_int],0,rbbox_color,2)
             label_text = class_names[
                 label] if class_names is not None else 'cls {}'.format(label)
             if len(bbox) > 4:
                 label_text += '|{:.02f}'.format(bbox[-1])
             cv2.putText(img, label_text, (bbox_int[0], bbox_int[1] - 2),
+                    cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
+        
+        cv2.imwrite(file_name,img)
+
+def show_rbbox(data,result, img_norm_cfg, class_names,
+            score_thr=0.3, file_name='0.png'):
+    
+    rbbox_result = result
+    img_tensor = data['img'][0]
+    img_metas = data['img_meta'][0].data[0]
+    imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+    
+    for img, img_meta in zip(imgs, img_metas):
+        h, w, _ = img_meta['img_shape']
+        img_show = img[:h, :w, :]
+        
+        rbboxes = np.vstack(rbbox_result)
+
+        # draw rbbox
+        labels = [
+            np.full(rbbox.shape[0], i, dtype=np.int32)
+                for i, rbbox in enumerate(rbbox_result)
+        ]
+        labels = np.concatenate(labels)
+        
+        img = imread(img_show)
+        
+        scores = rbboxes[:, -1]
+        inds = scores > score_thr
+        rbboxes = rbboxes[inds, :8]
+        labels = labels[inds]
+        
+        rbbox_color = (0, 255, 0)
+        text_color = (0, 255, 0)
+        font_scale = 0.5
+        
+        for rbbox, score, label in zip(rbboxes, scores, labels):
+            rbbox_int = rbbox.astype(np.int32)
+            rbbox_int = rbbox_int.reshape(4,2)
+            cv2.drawContours(img,[rbbox_int],0,rbbox_color,1)
+            label_text = class_names[
+                label] if class_names is not None else 'cls {}'.format(label)
+            label_text += '|{:.02f}'.format(score)
+            cv2.putText(img, label_text, (rbbox_int[0][0], rbbox_int[0][1] - 2),
                     cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
         
         cv2.imwrite(file_name,img)

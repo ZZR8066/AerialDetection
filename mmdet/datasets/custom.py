@@ -308,7 +308,7 @@ class CustomDataset(Dataset):
             proposal = None
         # TODO: make the flip and rotate at the same time
         # TODO: when implement the img rotation, we do not consider the proposals, add it in future
-        def prepare_single(img, scale, flip, proposal=None):
+        def prepare_single(img, scale, file_name, flip, proposal=None):
             _img, img_shape, pad_shape, scale_factor = self.img_transform(
                 img, scale, flip, keep_ratio=self.resize_keep_ratio)
             _img = to_tensor(_img)
@@ -317,6 +317,7 @@ class CustomDataset(Dataset):
                 img_shape=img_shape,
                 pad_shape=pad_shape,
                 scale_factor=scale_factor,
+                file_name=file_name,
                 flip=flip,
                 angle=0)
             if proposal is not None:
@@ -356,7 +357,7 @@ class CustomDataset(Dataset):
         proposals = []
         for scale in self.img_scales:
             _img, _img_meta, _proposal = prepare_single(
-                img, scale, False, proposal)
+                img, scale, img_info['file_name'], False, proposal)
             imgs.append(_img)
             img_metas.append(DC(_img_meta, cpu_only=True))
             proposals.append(_proposal)
