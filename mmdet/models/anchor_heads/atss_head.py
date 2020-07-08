@@ -427,3 +427,89 @@ class ATSSHead(AnchorHead):
             int(flags.sum()) for flags in split_inside_flags
         ]
         return num_level_anchors_inside
+
+    def get_bboxes(self,
+                   cls_scores,
+                   bbox_preds,
+                   centernesses,
+                   img_metas,
+                   cfg,
+                   rescale=None):
+        assert len(cls_scores) == len(bbox_preds)
+        num_levels = len(cls_scores)
+
+        mlvl_anchors = [
+            self.anchor_generators[i].grid_anchors(cls_scores[i].size()[-2:],
+                                                   self.anchor_strides[i])
+            for i in range(num_levels)
+        ]
+        result_list = []
+        for img_id in range(len(img_metas)):
+            cls_score_list = [
+                cls_scores[i][img_id].detach() for i in range(num_levels)
+            ]
+            bbox_pred_list = [
+                bbox_preds[i][img_id].detach() for i in range(num_levels)
+            ]
+            centerness_pred_list = [
+                centernesses[i][img_id].detach() for i in range(num_levels)
+            ]
+            img_shape = img_metas[img_id]['img_shape']
+            scale_factor = img_metas[img_id]['scale_factor']
+            proposals = self.get_bboxes_single(
+                cls_score_list, bbox_pred_list, centerness_pred_list,
+               mlvl_anchors, img_shape, scale_factor, cfg, rescale)
+            result_list.append(proposals)
+        return result_list
+    
+    def get_bboxes_single(self,
+                          cls_scores,
+                          bbox_preds,
+                          centernesses,
+                          mlvl_anchors,
+                          img_shape,
+                          scale_factor,
+                          cfg,
+                          rescale=False):
+        assert len(cls_scores) == len(bbox_preds) == len(mlvl_anchors)
+        mlvl_bboxes = []
+        mlvl_scores = []
+        mlvl_centerness = []
+        for cls_score, bbox_pred, centerness, anchors in zip(
+                cls_scores, bbox_preds, centernesses, mlvl_anchors):
+            assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
+            scores = cls_score.permute(1, 2, 0).reshape(
+                -1, self.cls_out_channels).sigmoid()
+            centerness = centerness.permute(1, 2, 0).reshape(-1).sigmoid()
+            
+            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
+            nms_pre = cfg.get('nms_pre', -1)
+            if nms_pre > 0 and scores.shape[0] > nms_pre:
+                max_scores, _ = (scores * centerness[:, None]).max(dim=1)
+                _, topk_inds = max_scores.topk(nms_pre)
+                anchors = anchors[topk_inds, :]
+                bbox_pred = bbox_pred[topk_inds, :]
+                scores = scores[topk_inds, :]
+                centerness = centerness[topk_inds]
+            bboxes = delta2bbox(anchors, bbox_pred, self.target_means,
+                                self.target_stds, img_shape)
+            mlvl_bboxes.append(bboxes)
+            mlvl_scores.append(scores)
+            mlvl_centerness.append(centerness)
+        mlvl_bboxes = torch.cat(mlvl_bboxes)
+        
+        if rescale:
+            mlvl_bboxes /= mlvl_bboxes.new_tensor(scale_factor)
+        mlvl_scores = torch.cat(mlvl_scores)
+        padding = mlvl_scores.new_zeros(mlvl_scores.shape[0], 1)
+        mlvl_scores = torch.cat([padding, mlvl_scores], dim=1)
+        mlvl_centerness = torch.cat(mlvl_centerness)
+        det_bboxes, det_labels = multiclass_nms(
+            mlvl_bboxes,
+            mlvl_scores,
+            cfg.score_thr,
+            cfg.nms,
+            cfg.max_per_img,
+            score_factors=mlvl_centerness)
+        return det_bboxes
+        # return det_bboxes, det_labels

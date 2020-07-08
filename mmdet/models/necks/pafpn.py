@@ -113,7 +113,7 @@ class PAFPN(nn.Module):
                     3,
                     stride=2,
                     padding=1,
-                    normalize=normalize,
+                    # normalize=normalize,
                     bias=self.with_bias,
                     activation=self.activation,
                     inplace=False)
