@@ -19,11 +19,11 @@ from zzr_function import (show_rmask, show_mask, tran2obb_results, trans2hbb_res
                         tran2hbb_results, tran2mix_results, show_bbox, trans2mask_results, assembel_mask, assembel_mask_V2,
                         trans2ms_result, trans2ms_results, trans2mix_results, trans2obb_results, show_rbbox, DotaResult2Submit)
 
-import os
-
-save_dir='./test_out_results/' #random_size=[512,768,1024,1280,1536]
-os.system('mkdir %s'%save_dir)
-os.system('rm %s*'%save_dir)
+# import os
+# # os.environ["CUDA_VISIBLE_DEVICES"] = "3"  
+# save_dir='./test_out_results/' #random_size=[512,768,1024,1280,1536]
+# os.system('mkdir %s'%save_dir)
+# os.system('rm %s*'%save_dir)
 
 def get_time_str():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
@@ -46,14 +46,14 @@ def single_gpu_test(model, data_loader, show=False, log_dir=None):
         results.append(result)
 
         if show:
-            show_rbbox(data, result, dataset.img_norm_cfg, dataset.CLASSES)
+            # show_rbbox(data, result, dataset.img_norm_cfg, dataset.CLASSES)
             # show_bbox(data, result, dataset.img_norm_cfg, dataset.CLASSES)
             # show_mask(data, result[:2], dataset.img_norm_cfg, dataset.CLASSES)
-            # show_rmask(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
+            show_rmask(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
             # model.module.show_result(data, result, dataset.img_norm_cfg)
 
         ## write dota results to submit format
-        DotaResult2Submit(data['img_meta'][0].data[0][0]['file_name'], result, save_dir)
+        # DotaResult2Submit(data['img_meta'][0].data[0][0]['file_name'], result, save_dir)
         
         batch_size = data['img'][0].size(0)
         for _ in range(batch_size):
@@ -197,6 +197,7 @@ def main():
     if not distributed:
         # pass
         model = MMDataParallel(model, device_ids=[0])
+        # model = MMDataParallel(model, device_ids=[3])
         outputs = single_gpu_test(model, data_loader, args.show, args.log_dir)
     else:
         model = MMDistributedDataParallel(model.cuda())
