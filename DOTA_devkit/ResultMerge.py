@@ -205,8 +205,12 @@ if __name__ == '__main__':
     #             r'/disk2/zzr/work_dirs/RoITrans_r50_fpn_1x_dota1_5/Task1_merge_results_epoch12')
     # mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_1x_dota1_5/Task1_results_epoch12',
     #             r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_1x_dota1_5/Task1_merge_results_epoch12')
-    mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_results_epoch12',
-                r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
+
+    # mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_results_epoch12',
+    #             r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
+    
+    mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_atss_rcnn_1x_dota1_5/Task1_results_epoch12',
+                r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_atss_rcnn_1x_dota1_5/Task1_merge_results_epoch12')
 
     elapsed = (time.clock() - start)
     print("Time used:", elapsed)

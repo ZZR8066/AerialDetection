@@ -30,6 +30,41 @@ def DotaResult2Submit(file_name, result, save_dir):
                     polygon[2,0],polygon[2,1],polygon[3,0],polygon[3,1],))
 
 
+def show_rmask_single(data,result, img_norm_cfg, class_names,
+            score_thr=0.0, file_name='0.png'):
+    
+    bbox_result, segm_result, rbbox_result = result
+    img_tensor = data['img'][0]
+    img_metas = data['img_meta'][0].data[0]
+    imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+    
+    for img, img_meta in zip(imgs, img_metas):
+        h, w, _ = img_meta['img_shape']
+        img_show = img[:h, :w, :]
+        
+        bboxes  = np.vstack(bbox_result)
+        rbboxes = np.vstack(rbbox_result)
+        rbboxes = rbboxes[:, :8]
+        segms = mmcv.concat_list(segm_result)
+        inds = np.where(bboxes[:, -1] > score_thr)[0]
+        
+        rbbox_color = (0, 0, 255)
+        text_color = (0, 255, 0)
+        font_scale = 0.5
+        
+        for i in inds:
+            imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+            img_show = imgs[0][:h, :w, :]
+            color_mask = np.random.randint(
+                0, 256, (1, 3), dtype=np.uint8)
+            mask = maskUtils.decode(segms[i]).astype(np.bool)
+            img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
+            rbbox_int = rbboxes[i].astype(np.int32)
+            rbbox_int = rbbox_int.reshape(4,2)
+            cv2.drawContours(img_show,[rbbox_int],0,rbbox_color,2)
+            path_str = 'test_out_img/' + str(i) + '.png'
+            cv2 .imwrite(path_str, img_show)
+
 def assembel_mask(results):
     assembel_masks = []
     for result in results:
@@ -103,6 +138,71 @@ def tran2mix_results(outputs, inds=[0,3,4,5,7,8,9,10,11,13,14]):
         final_results.append(output)
     return final_results
 
+def show_all_box(data,result, img_norm_cfg, class_names,
+            score_thr=0.3, file_name='0.png'):
+    
+    bbox_result, segm_result, rbbox_result = result
+    img_tensor = data['img'][0]
+    img_metas = data['img_meta'][0].data[0]
+    imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+    
+    for img, img_meta in zip(imgs, img_metas):
+        h, w, _ = img_meta['img_shape']
+        img_show = img[:h, :w, :]
+        
+        bboxes  = np.vstack(bbox_result)
+        rbboxes = np.vstack(rbbox_result)
+
+        
+        img = imread(img_show)
+        
+        scores = rbboxes[:, -1]
+        inds = scores > score_thr
+        bboxes = bboxes[inds, :]
+        rbboxes = rbboxes[inds, :8]
+        
+        rbbox_color = [(0, 0, 255),(0, 255, 0),(255, 0, 0),\
+            (10, 100, 255), (1, 0, 255)]
+        text_color = (0, 255, 0)
+        font_scale = 0.5
+        
+        for rbbox, bbox in zip(rbboxes, bboxes):
+            bbox_int = bbox.astype(np.int32)
+            rbbox_int = rbbox.astype(np.int32)
+            rbbox_int = rbbox_int.reshape(4,2)
+            choice = np.random.choice(5, 1)
+            cv2.drawContours(img,[rbbox_int],0,rbbox_color[choice[0]],3)
+        
+        cv2.imwrite('0.png',img)
+
+    img_tensor = data['img'][0]
+    img_metas = data['img_meta'][0].data[0]
+    imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+    
+    for img, img_meta in zip(imgs, img_metas):
+        h, w, _ = img_meta['img_shape']
+        img_show = img[:h, :w, :]
+        
+        bboxes  = np.vstack(bbox_result)
+        
+        img = imread(img_show)
+        
+        scores = bboxes[:, -1]
+        inds = scores > score_thr
+        bboxes = bboxes[inds, :]
+        
+        bbox_color = [(0, 0, 255),(0, 255, 0),(255, 0, 0),\
+            (10, 100, 255), (1, 0, 255)]
+        text_color = (0, 255, 0)
+        font_scale = 0.5
+        
+        for bbox in bboxes:
+            bbox_int = bbox.astype(np.int32)
+            choice = np.random.choice(5, 1)
+            cv2.rectangle(img, (bbox_int[0], bbox_int[1]), (bbox_int[2], bbox_int[3]), bbox_color[choice[0]], 2)
+        
+        cv2.imwrite('1.png',img)
+
 def show_rmask(data,result, img_norm_cfg, class_names,
             score_thr=0.3, file_name='0.png'):
     
@@ -145,7 +245,7 @@ def show_rmask(data,result, img_norm_cfg, class_names,
         rbbox_color = (0, 0, 255)
         text_color = (0, 255, 0)
         font_scale = 0.5
-        
+        '''
         for rbbox, bbox, label in zip(rbboxes, bboxes, labels):
             bbox_int = bbox.astype(np.int32)
             rbbox_int = rbbox.astype(np.int32)
@@ -157,7 +257,7 @@ def show_rmask(data,result, img_norm_cfg, class_names,
                 label_text += '|{:.02f}'.format(bbox[-1])
             cv2.putText(img, label_text, (bbox_int[0], bbox_int[1] - 2),
                     cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
-        
+        '''
         cv2.imwrite(file_name,img)
 
 def show_rbbox(data,result, img_norm_cfg, class_names,

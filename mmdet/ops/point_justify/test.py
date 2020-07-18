@@ -24,7 +24,7 @@ for poly_id, polygon in enumerate(polygons):
         # 画圆，圆心为：(160, 160)，半径为：60，颜色为：point_color，实心线
         point = tuple(np.int0(point))
         cv2.circle(canvas, point, 4, (0,0,255), -1)
-        save_path = '/disk1/zzr/datapreprocess/cudaforPointInPolygon/images/'+\
+        save_path = '/disk2/zzr/AerialDetection/mmdet/ops/point_justify/images/'+\
             str(poly_id) + '_' + str(point_id) +'.png'
         cv2.imwrite(save_path, canvas)
 

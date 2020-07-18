@@ -7,7 +7,7 @@ from ..geometry import bbox_overlaps
 
 from mmdet.core.bbox.transforms_rbbox import RotBox2Polys, RotBox2Polys_torch
 from ..geometry import bbox_overlaps, rbbox_overlaps_cy_warp
-from .points_justify import pointsJf
+# from .points_justify import pointsJf
 
 class ATSSAllLevelsAssignerRbbox(BaseAssigner):
     """Assign a corresponding gt bbox or background to each bbox.
@@ -99,7 +99,7 @@ class ATSSAllLevelsAssignerRbbox(BaseAssigner):
         # gt_cy = (gt_bboxes[:, 1] + gt_bboxes[:, 3]) / 2.0
         gt_cx = gt_bboxes[:, 0]
         gt_cy = gt_bboxes[:, 1]
-        gt_points = torch.stack((gt_cx, gt_cy), dim=1)
+        gt_points = torch.stack((gt_cx, gt_cy), dim=1).float()
 
         # bboxes_cx = (bboxes[:, 0] + bboxes[:, 2]) / 2.0
         # bboxes_cy = (bboxes[:, 1] + bboxes[:, 3]) / 2.0
@@ -137,11 +137,12 @@ class ATSSAllLevelsAssignerRbbox(BaseAssigner):
         is_pos = candidate_overlaps >= overlaps_thr_per_gt[None, :]
         
         # limit the positive sample's center in gt
+        from mmdet.ops.point_justify import pointsJf
         inside_flag = torch.full([num_bboxes, num_gt], 0.).to(gt_bboxes.device).float()
         pointsJf(bboxes_points, \
                 RotBox2Polys_torch(gt_bboxes).float(),\
                 inside_flag)
-        is_in_gts = inside_flag[candidate_idxs, torch.arange(num_gt)].to(torch.bool)
+        is_in_gts = inside_flag[candidate_idxs, torch.arange(num_gt)].to(is_pos.dtype)
         
         is_pos = is_pos & is_in_gts
         
@@ -182,8 +183,10 @@ class ATSSAllLevelsAssignerRbbox(BaseAssigner):
           
         if gt_labels is not None:
             assigned_labels = assigned_gt_inds.new_full((num_bboxes, ), -1)
+            # pos_inds = torch.nonzero(
+            #     assigned_gt_inds > 0, as_tuple=False).squeeze()
             pos_inds = torch.nonzero(
-                assigned_gt_inds > 0, as_tuple=False).squeeze()
+                assigned_gt_inds > 0).squeeze()
             if pos_inds.numel() > 0:
                 assigned_labels[pos_inds] = gt_labels[
                     assigned_gt_inds[pos_inds] - 1]

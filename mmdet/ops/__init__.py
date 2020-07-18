@@ -10,7 +10,7 @@ from .roi_align_rotated import RoIAlignRotated, roi_align_rotated, ARoIAlignRota
 from .psroi_align_rotated import PSRoIAlignRotated, psroi_align_rotated
 from .sigmoid_focal_loss import SigmoidFocalLoss, sigmoid_focal_loss
 from .masked_conv import MaskedConv2d
-from .point_justify import pointsJf
+# from .point_justify import pointsJf
 
 __all__ = [
     'nms', 'soft_nms', 'RoIAlign', 'roi_align', 'RoIPool', 'roi_pool', 'ARoIAlignRotated', 'aroi_align_rotated',
@@ -19,5 +19,6 @@ __all__ = [
     'ModulatedDeformRoIPoolingPack', 'ModulatedDeformConv',
     'ModulatedDeformConvPack', 'deform_conv', 'modulated_deform_conv',
     'deform_roi_pooling', 'SigmoidFocalLoss', 'sigmoid_focal_loss',
-    'MaskedConv2d', 'ContextBlock', 'pointsJf'
+    'MaskedConv2d', 'ContextBlock', 
+    # 'pointsJf'
 ]

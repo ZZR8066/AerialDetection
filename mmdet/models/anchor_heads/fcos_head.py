@@ -251,7 +251,8 @@ class FCOSHead(nn.Module):
             cfg.nms,
             cfg.max_per_img,
             score_factors=mlvl_centerness)
-        return det_bboxes, det_labels
+        return det_bboxes
+        # return det_bboxes, det_labels
 
     def get_points(self, featmap_sizes, dtype, device):
         """Get points according to feature map sizes.
