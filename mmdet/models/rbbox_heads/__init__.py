@@ -3,5 +3,7 @@ from .convfc_rbbox_head import ConvFCBBoxHeadRbbox, SharedFCBBoxHeadRbbox
 from .rbbox_atten_head import RbboxAttenHead
 from .atten_head import AttenHead
 from .fused_rbbox_head import FusedFCBBoxHeadRbbox
+from .fused_rbbox_vertex_head import FusedVertexFCBBoxHeadRbbox
+from .fused_rbbox_APE_head import FusedAPEFCBBoxHeadRbbox
 __all__ = ['BBoxHeadRbbox', 'ConvFCBBoxHeadRbbox', 'SharedFCBBoxHeadRbbox', 'RbboxAttenHead', 'AttenHead',
-    'FusedFCBBoxHeadRbbox']
+    'FusedFCBBoxHeadRbbox', 'FusedVertexFCBBoxHeadRbbox', 'FusedAPEFCBBoxHeadRbbox']

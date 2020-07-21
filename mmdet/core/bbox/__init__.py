@@ -18,9 +18,9 @@ from .transforms_rbbox import (dbbox2delta, delta2dbbox, mask2poly,
                                choose_best_match_batch,
                                choose_best_Rroi_batch, delta2dbbox_v2,
                                delta2dbbox_v3, dbbox2delta_v3, hbb2obb_v2, RotBox2Polys, RotBox2Polys_torch,
-                               poly2bbox, dbbox_rotate_mapping, bbox_rotate_mapping,
-                               bbox_rotate_mapping, dbbox_mapping_back)
-from .bbox_target_rbbox import bbox_target_rbbox, rbbox_target_rbbox
+                               poly2bbox, dbbox_rotate_mapping, bbox_rotate_mapping, delta2bbox_APE,
+                               bbox_rotate_mapping, dbbox_mapping_back, rbbox2delta_8points, delta2bbox_8points)
+from .bbox_target_rbbox import bbox_target_rbbox, rbbox_target_rbbox, rbbox_target_vertex, bbox_target_rbbox_APE
 
 __all__ = [
     'bbox_overlaps', 'BaseAssigner', 'MaxIoUAssigner', 'AssignResult',
@@ -37,5 +37,6 @@ __all__ = [
     'rbbox_target_rbbox', 'choose_best_match_batch', 'choose_best_Rroi_batch',
     'delta2dbbox_v2', 'delta2dbbox_v3', 'dbbox2delta_v3',
     'hbb2obb_v2', 'RotBox2Polys', 'RotBox2Polys_torch', 'poly2bbox', 'dbbox_rotate_mapping',
-    'bbox_rotate_mapping', 'bbox_rotate_mapping', 'dbbox_mapping_back'
+    'bbox_rotate_mapping', 'bbox_rotate_mapping', 'dbbox_mapping_back', 'rbbox_target_vertex', 'rbbox2delta_8points',
+    'delta2bbox_8points', 'bbox_target_rbbox_APE', 'delta2bbox_APE'
 ]

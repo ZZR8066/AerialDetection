@@ -5,6 +5,228 @@ import math
 import cv2
 import copy
 
+def delta2bbox_APE(rois,
+               deltas,
+               means=[.0, .0, .0, .0, .0, .0, .0, .0],
+               stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+               max_shape=None,
+               wh_ratio_clip=None):
+    assert rois.shape[1] == 4
+    '''  class agnostic '''
+    means = deltas.new_tensor(means).repeat(1, deltas.size(1) // 8)
+    stds = deltas.new_tensor(stds).repeat(1, deltas.size(1) // 8)
+    denorm_deltas = (deltas * stds + means).view(deltas.size(0),8)
+    
+    dx = denorm_deltas[:, 0::8]
+    dy = denorm_deltas[:, 1::8]
+    dw = denorm_deltas[:, 2::8]
+    dh = denorm_deltas[:, 3::8]
+    
+    px1 = rois[:, 0]
+    py1 = rois[:, 1]
+    px2 = rois[:, 2]
+    py2 = rois[:, 3]
+
+    px = (px1 + px2) / 2.
+    py = (py1 + py2) / 2.
+    pw = px2 - px1 + 1.
+    ph = py2 - py1 + 1.
+
+    px = px.unsqueeze(1).expand_as(dx)
+    py = py.unsqueeze(1).expand_as(dy)
+    pw = pw.unsqueeze(1).expand_as(dw)
+    ph = ph.unsqueeze(1).expand_as(dh)
+    
+    gw = torch.clamp(pw* dw.exp(), min=1)
+    gh = torch.clamp(ph* dh.exp(), min=1)
+
+    gx = px + pw*dx
+    gy = py + ph*dy
+
+    theta_90_embed=((denorm_deltas[:,4:6])) #.cpu().data.numpy()
+    theta_180_embed=((denorm_deltas[:,6:8]))#.cpu().data.numpy()
+
+
+    theta_90=torch.atan2(theta_90_embed[:,1],theta_90_embed[:,0])/4.
+    theta_180=torch.atan2(theta_180_embed[:,1],theta_180_embed[:,0])
+    theta_90_del=torch.abs((theta_90*2-theta_180+np.pi)%(2*np.pi)-np.pi)
+
+    theta_w=theta_90*(theta_90_del<np.pi/2.).float()+(theta_90+np.pi/2.)*(~(theta_90_del<np.pi/2.)).float()
+    
+    gw_final=torch.max(gw,gh)
+    gh_final=torch.min(gw,gh)
+    
+    out=torch.cat([gx,gy,gw_final,gh_final,theta_w.unsqueeze(-1)],dim=-1)
+    
+    return out
+
+def bbox2delta_APE(proposals, gt, means=[.0, .0, .0, .0, .0, .0, .0, .0],\
+    stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]):
+    ''' class agnostic '''
+    assert proposals.size(0) == gt.size(0)
+    assert proposals.size(1) == 4
+    assert gt.size(1)==5
+    #pdb.set_trace()
+    proposals = proposals.float()
+    gt = gt.float()
+    
+    px1 = proposals[..., 0]
+    py1 = proposals[..., 1]
+    px2 = proposals[..., 2]
+    py2 = proposals[..., 3]
+
+    px = (px1 + px2) / 2.
+    py = (py1 + py2) / 2.
+    pw = px2 - px1 + 1.
+    ph = py2 - py1 + 1.
+
+    gx = (gt[..., 0])
+    gy = (gt[..., 1])
+    gw = torch.max(gt[..., 2:4],dim=-1)[0]
+    gh = torch.min(gt[..., 2:4],dim=-1)[0]
+    theta=gt[:,-1:]#/180*np.pi
+
+    theta_90=theta*4
+    theta_180_w=theta*2
+    theta_180_h=(theta+np.pi/2)*2
+    theta_90_embed=torch.cat([torch.cos(theta_90), torch.sin(theta_90)],dim=-1)
+    theta_180_w_embed=torch.cat([torch.cos(theta_180_w), torch.sin(theta_180_w)],dim=-1)
+    theta_180_h_embed=torch.cat([torch.cos(theta_180_h), torch.sin(theta_180_h)],dim=-1)
+    theta_180_wh_embed=torch.where((gt[:, 2]>gt[:, 3]).unsqueeze(-1),theta_180_w_embed,-theta_180_w_embed)
+    theta_180_wh_embed_norm=theta_180_wh_embed*torch.clamp((gw-gh)/torch.clamp(gh,min=1e-10),max=0.5).unsqueeze(1)*2
+    
+    dx = (gx - px)/ pw
+    dy = (gy - py)/ ph
+    dw = torch.log(gw / pw)# gw # 
+    dh = torch.log(gh / ph) #gh # 
+    deltas = torch.stack([dx, dy, dw, dh], dim=-1)
+    deltas = torch.cat([deltas,theta_90_embed,theta_180_wh_embed_norm],dim=-1)
+    
+    means = deltas.new_tensor(means).unsqueeze(0)
+    stds = deltas.new_tensor(stds).unsqueeze(0)
+    deltas = deltas.sub_(means).div_(stds)
+    
+    return deltas
+    
+def rbbox2delta_8points(proposals, gt, means=[.0, .0, .0, .0, .0, .0, .0, .0], 
+        stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]):
+    assert proposals.size(0) == gt.size(0)
+    #pdb.set_trace()
+    proposals = proposals.float()
+    gt = gt.float()
+    center_p=proposals[:,:2]
+    theta_p=proposals[:,-1]
+    gt_8point=recTobox(gt)
+    gt_8point_rotated=rotate_theta(gt_8point.unsqueeze(1).view(-1,1,4,2),theta_p,center_p)
+    gt_8point_rotated=gt_8point_rotated.view(-1,4,2)
+
+    #gt=
+    #gt=
+    px = proposals[..., 0]#(proposals[..., 0] + proposals[..., 2]) * 0.5
+    py = proposals[..., 1]#(proposals[..., 1] + proposals[..., 3]) * 0.5
+    pw = proposals[..., 2]
+    ph = proposals[..., 3]
+    #pdb.set_trace()
+    gx = gt_8point_rotated[:,:,0]
+    gy = gt_8point_rotated[:,:,1]
+    dx = (gx - px.unsqueeze(1)) / pw.unsqueeze(1) 
+    dy = (gy - py.unsqueeze(1)) / ph.unsqueeze(1)
+    
+    deltas = torch.cat([dx, dy], dim=-1)
+    means = deltas.new_tensor(means).unsqueeze(0)
+    stds = deltas.new_tensor(stds).unsqueeze(0)
+    deltas = deltas.sub_(means).div_(stds)
+    #deltas = torch.cat([dx, dy], dim=-1)/0.1
+    #pdb.set_trace()
+
+    return deltas
+
+def delta2bbox_8points(rois,
+               deltas,
+               means=[.0, .0, .0, .0, .0, .0, .0, .0], 
+               stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+               max_shape=None,
+               wh_ratio_clip=16 / 1000):
+    means = deltas.new_tensor(means).repeat(1, deltas.size(1) // 8)
+    stds = deltas.new_tensor(stds).repeat(1, deltas.size(1) // 8)
+    denorm_deltas = (deltas * stds + means).view(deltas.size(0),-1,8)
+
+    dx = denorm_deltas[:, :, :4]
+    dy = denorm_deltas[:, :, 4:]
+    
+    px=rois[:, 0].unsqueeze(1).unsqueeze(1).expand_as(dx)#proposals[..., 0]
+    py=rois[:, 1].unsqueeze(1).unsqueeze(1).expand_as(dy)#proposals[..., 1]
+    pw=(rois[:, 2]).unsqueeze(1).unsqueeze(1).expand_as(dx)#proposals[..., 2]+1
+    ph=(rois[:, 3]).unsqueeze(1).unsqueeze(1).expand_as(dy)#proposals[..., 3]+1
+    theta=rois[:,4]
+
+    gx = torch.addcmul(px, 1, pw, dx)  # gx = px + pw * dx
+    gy = torch.addcmul(py, 1, ph, dy)  # gy = py + ph * dy
+    gxy=torch.stack([gx,gy],dim=-1)
+    center=rois[:, :2]
+    
+    gxy=rotate_theta(gxy,-theta,center,is_sort=False)
+    gxy=gxy.view(deltas.size(0),-1,8)
+    return gxy
+
+def recTobox(rec,is_clock=True):
+    gx=rec[:,0].unsqueeze(-1)
+    gy=rec[:,1].unsqueeze(-1)
+    gw=rec[:,2].unsqueeze(-1)
+    gh=rec[:,3].unsqueeze(-1)
+    theta_w=rec[:,-1]
+    #score=rec[:,-1].unsqueeze(-1)
+    x1=gw/2#+0.5
+    y1=gh/2#+0.5
+    x2=-gw/2#-0.5
+    y2=-gh/2#-0.5    
+    rec_hori=torch.cat((x1,y1,x2,y1,x2,y2,x1,y2),dim=-1).view(-1,4,2)
+    #pdb.set_trace()
+    rec_rotate=torch.zeros_like(rec_hori)
+    theta_w=-theta_w.unsqueeze(-1)
+    rec_rotate[:,:,0]=torch.cos(theta_w)*rec_hori[:,:,0]+torch.sin(theta_w)*rec_hori[:,:,1]
+    rec_rotate[:,:,1]=-torch.sin(theta_w)*rec_hori[:,:,0]+torch.cos(theta_w)*rec_hori[:,:,1]
+    rec_rotate[:,:,0]=rec_rotate[:,:,0]+gx
+    rec_rotate[:,:,1]=rec_rotate[:,:,1]+gy
+    return rec_rotate.view(-1,8)
+    
+
+def rotate_theta(bboxes,theta,center,is_sort=True):
+    #pdb.set_trace()
+
+    theta=theta.unsqueeze(-1).unsqueeze(-1)
+    center=center.unsqueeze(-2).unsqueeze(-2)
+    bboxes_trans=bboxes.new_empty(bboxes.size())
+
+    #bboxes_trans[:,:,4]=bboxes[:,:,4]-theta
+    bboxes_trans=bboxes-center
+    #theta=theta*np.pi/
+    x=torch.cos(theta)*bboxes_trans[:,:,:,0]+torch.sin(theta)*bboxes_trans[:,:,:,1]
+    y=-torch.sin(theta)*bboxes_trans[:,:,:,0]+torch.cos(theta)*bboxes_trans[:,:,:,1]
+    bboxes_trans[:,:,:,0]=x
+    bboxes_trans[:,:,:,1]=y
+    bboxes_trans+=center
+    if is_sort:
+        bboxes_trans=sort_points(bboxes_trans)
+    #bboxes_trans[:,:,2:4]=bboxes[:,:,2:4]
+    #if flag:
+    #    bboxes_trans=bboxes_trans.squeeze(1)
+    return bboxes_trans
+    
+def sort_points(bboxes):
+    #pdb.set_trace()
+    center=bboxes.mean(2)
+    vector=bboxes-center.unsqueeze(-2)
+    vector_angle=torch.atan2(vector[:,:,:,1],vector[:,:,:,0])
+    vector_angle_del=torch.abs(((vector_angle-np.pi/4.)+np.pi)%(np.pi*2)-np.pi)
+    idx_min=vector_angle_del.argmin(-1)
+    p1=torch.gather(bboxes,dim=-2,index=idx_min.unsqueeze(-1).unsqueeze(-1).repeat(1,1,1,2)) #input, dim, index
+    p2=torch.gather(bboxes,dim=-2,index=((idx_min+1)%4).unsqueeze(-1).unsqueeze(-1).repeat(1,1,1,2))
+    p3=torch.gather(bboxes,dim=-2,index=((idx_min+2)%4).unsqueeze(-1).unsqueeze(-1).repeat(1,1,1,2))
+    p4=torch.gather(bboxes,dim=-2,index=((idx_min+3)%4).unsqueeze(-1).unsqueeze(-1).repeat(1,1,1,2))
+    sorted_bboxes=torch.cat([p1,p2,p3,p4],dim=-2)
+    return sorted_bboxes
+
 
 # TODO: check the angle and module operation
 def dbbox2delta(proposals, gt, means = [0, 0, 0, 0, 0], stds=[1, 1, 1, 1, 1]):

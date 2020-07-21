@@ -2,8 +2,176 @@ import torch
 
 from .transforms_rbbox import dbbox2delta, delta2dbbox, \
     mask2poly, get_best_begin_point, polygonToRotRectangle_batch\
-    , best_match_dbbox2delta, delta2dbbox_v3, dbbox2delta_v3, hbb2obb_v2
+    , best_match_dbbox2delta, delta2dbbox_v3, dbbox2delta_v3, hbb2obb_v2, rbbox2delta_8points, bbox2delta_APE
 from ..utils import multi_apply
+
+def bbox_target_rbbox_APE(pos_bboxes_list,
+                neg_bboxes_list,
+                pos_assigned_gt_inds_list,
+                gt_obbs_list,
+                pos_gt_labels_list,
+                cfg,
+                reg_classes=1,
+                target_means=[.0, .0, .0, .0, .0, .0, .0, .0],
+                target_stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                concat=True):
+    # import pdb
+    # pdb.set_trace()
+    labels, label_weights, bbox_targets, bbox_weights = multi_apply(
+        bbox_target_rbbox_APE_single,
+        pos_bboxes_list,
+        neg_bboxes_list,
+        pos_assigned_gt_inds_list,
+        gt_obbs_list,
+        pos_gt_labels_list,
+        cfg=cfg,
+        reg_classes=reg_classes,
+        target_means=target_means,
+        target_stds=target_stds)
+
+    if concat:
+        labels = torch.cat(labels, 0)
+        label_weights = torch.cat(label_weights, 0)
+        bbox_targets = torch.cat(bbox_targets, 0)
+        bbox_weights = torch.cat(bbox_weights, 0)
+    return labels, label_weights, bbox_targets, bbox_weights
+
+
+def bbox_target_rbbox_APE_single(pos_bboxes,
+                       neg_bboxes,
+                       pos_assigned_gt_inds,
+                       gt_obbs,
+                       pos_gt_labels,
+                       cfg,
+                       reg_classes=1,
+                       target_means=[.0, .0, .0, .0, .0, .0, .0, .0],
+                       target_stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]):
+           
+    """
+
+    :param pos_bboxes: Tensor, shape (n, 4)
+    :param neg_bboxes: Tensor, shape (m, 4)
+    :param pos_assigned_gt_inds: Tensor, shape (n)
+    :param gt_masks: numpy.ndarray, shape (n, 1024, 1024)
+    :param pos_gt_labels:   Tensor, shape (n)
+    :param cfg: dict, cfg.pos_weight = -1
+    :param reg_classes: 16
+    :param target_means:
+    :param target_stds:
+    :return:
+    """
+    # import pdb
+    # pdb.set_trace()
+    num_pos = pos_bboxes.size(0)
+    num_neg = neg_bboxes.size(0)
+    num_samples = num_pos + num_neg
+    labels = pos_bboxes.new_zeros(num_samples, dtype=torch.long)
+    label_weights = pos_bboxes.new_zeros(num_samples)
+    bbox_targets = pos_bboxes.new_zeros(num_samples, 8)
+    bbox_weights = pos_bboxes.new_zeros(num_samples, 8)
+    
+    pos_gt_obbs = gt_obbs[pos_assigned_gt_inds.cpu().numpy()]
+    
+    if num_pos > 0:
+        labels[:num_pos] = pos_gt_labels
+        pos_weight = 1.0 if cfg.pos_weight <= 0 else cfg.pos_weight
+        label_weights[:num_pos] = pos_weight
+        pos_bbox_targets = bbox2delta_APE(pos_bboxes, pos_gt_obbs, target_means, target_stds)
+        bbox_targets[:num_pos, :] = pos_bbox_targets
+        bbox_weights[:num_pos, :] = 1
+    if num_neg > 0:
+        label_weights[-num_neg:] = 1.0
+
+    return labels, label_weights, bbox_targets, bbox_weights
+
+
+
+def rbbox_target_vertex(pos_rbboxes_list,
+                         neg_rbboxes_list,
+                         pos_gt_rbboxes_list,
+                         pos_gt_labels_list,
+                         cfg,
+                         reg_classes=1,
+                         target_means=[.0, .0, .0, .0, .0, .0, .0, .0],
+                         target_stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                         concat=True):
+    labels, label_weights, bbox_targets, bbox_weights = multi_apply(
+        rbbox_target_vertex_single,
+        pos_rbboxes_list,
+        neg_rbboxes_list,
+        pos_gt_rbboxes_list,
+        pos_gt_labels_list,
+        cfg=cfg,
+        reg_classes=reg_classes,
+        target_means=target_means,
+        target_stds=target_stds)
+
+    if concat:
+        labels = torch.cat(labels, 0)
+        label_weights = torch.cat(label_weights, 0)
+        bbox_targets = torch.cat(bbox_targets, 0)
+        bbox_weights = torch.cat(bbox_weights, 0)
+    return labels, label_weights, bbox_targets, bbox_weights
+
+def rbbox_target_vertex_single(pos_rbboxes,
+                       neg_rbboxes,
+                       pos_gt_rbboxes,
+                       pos_gt_labels,
+                       cfg,
+                       reg_classes=1,
+                       target_means=[.0, .0, .0, .0, .0, .0, .0, .0],
+                       target_stds=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],):
+    """
+
+    :param pos_bboxes:
+    :param neg_bboxes:
+    :param gt_masks:
+    :param pos_gt_labels:
+    :param cfg:
+    :param reg_classes:
+    :param target_means:
+    :param target_stds:
+    :return:
+    """
+    assert pos_rbboxes.size(1) == 5
+    num_pos = pos_rbboxes.size(0)
+    num_neg = neg_rbboxes.size(0)
+    num_samples = num_pos + num_neg
+    labels = pos_rbboxes.new_zeros(num_samples, dtype=torch.long)
+    label_weights = pos_rbboxes.new_zeros(num_samples)
+    num_regressing = 8
+    bbox_targets = pos_rbboxes.new_zeros(num_samples, num_regressing)
+    bbox_weights = pos_rbboxes.new_zeros(num_samples, num_regressing)
+
+    if num_pos > 0:
+        labels[:num_pos] = pos_gt_labels
+        pos_weight = 1.0 if cfg.pos_weight <= 0 else cfg.pos_weight
+        label_weights[:num_pos] = pos_weight
+        # import pdb
+        # pdb.set_trace()
+        pos_bbox_targets = rbbox2delta_8points(pos_rbboxes, pos_gt_rbboxes, 
+                    target_means, target_stds)
+        bbox_targets[:num_pos, :] = pos_bbox_targets
+        bbox_weights[:num_pos, :] = 1
+    if num_neg > 0:
+        label_weights[-num_neg:] = 1.0
+    
+    # if reg_classes > 1:
+    #     bbox_targets, bbox_weights = expand_target(bbox_targets, bbox_weights,
+    #                                            labels, reg_classes, num_regressing)
+
+    return labels, label_weights, bbox_targets, bbox_weights
+
+def expand_target(bbox_targets, bbox_weights, labels, num_classes, num_regressing):
+    bbox_targets_expand = bbox_targets.new_zeros((bbox_targets.size(0),
+                                                  num_regressing * num_classes))
+    bbox_weights_expand = bbox_weights.new_zeros((bbox_weights.size(0),
+                                                  num_regressing * num_classes))
+    for i in torch.nonzero(labels > 0).squeeze(-1):
+        start, end = labels[i] * num_regressing, (labels[i] + 1) * num_regressing
+        bbox_targets_expand[i, start:end] = bbox_targets[i, :]
+        bbox_weights_expand[i, start:end] = bbox_weights[i, :]
+    return bbox_targets_expand, bbox_weights_expand
 
 
 def bbox_target_rbbox(pos_bboxes_list,

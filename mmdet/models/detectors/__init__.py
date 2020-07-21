@@ -27,11 +27,14 @@ from .rotated_blend_mask import RotateBlendMaskRCNN
 from .blend_mask_rcnn import BlendMaskRCNN
 from .atss import ATSS
 from .AFRoITransformer import AFRoITransformer
+from .AF_APE_Vertex import AF_APE_Vertex
+from .AF_InLd_RoITransformer import AF_InLd_RoITransformer
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN', 'MaskScoringRCNN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
     'RetinaNet', 'FCOS', 'FasterRCNNOBB', 'TwoStageDetectorRbbox', 'RPFPNMask',
     'RoITransformer', 'FasterRCNNHBBOBB', 'RotateAdaptivePANet', 'BlendMask', 'MultiMaskAdaptive',
     'SingleStageDetectorRbbox', 'RetinaNetRbbox', 'RotateMaskRCNN', 'MultiMask', 'MultiMaskScore', 
-    'RotateBlendMaskRCNN', 'BlendMaskRCNN', 'ATSS', 'AFRoITransformer'
+    'RotateBlendMaskRCNN', 'BlendMaskRCNN', 'ATSS', 'AFRoITransformer', 'AF_APE_Vertex',
+    'AF_InLd_RoITransformer'
 ]
