@@ -339,7 +339,12 @@ class BBoxHeadRbbox(nn.Module):
 
         if rois.size(1) == 5:
             if self.with_module:
-                new_rois = delta2dbbox(rois, bbox_pred, self.target_means,
+                # # 原先版本
+                # new_rois = delta2dbbox(rois, bbox_pred, self.target_means,
+                #                   self.target_stds, img_meta['img_shape'])
+
+                # 替换为第二阶段相应的解码方案
+                new_rois = delta2dbbox_v2(rois, bbox_pred, self.target_means,
                                   self.target_stds, img_meta['img_shape'])
             else:
                 new_rois = delta2dbbox_v3(rois, bbox_pred, self.target_means,
