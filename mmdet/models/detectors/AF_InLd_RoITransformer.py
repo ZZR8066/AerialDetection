@@ -255,6 +255,9 @@ class AF_InLd_RoITransformer(BaseDetectorNew, RPNTestMixin):
 
     def simple_test(self, img, img_meta, proposals=None, rescale=False):
         x = self.extract_feat(img)
+        # denoise
+        x, segm_pred = self.InLd(x)
+        
         proposal_list = self.simple_test_rpn(
             x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
 

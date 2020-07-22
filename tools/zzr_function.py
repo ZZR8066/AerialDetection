@@ -304,6 +304,84 @@ def show_rbbox(data,result, img_norm_cfg, class_names,
         
         cv2.imwrite(file_name,img)
 
+import colorsys
+import random
+ 
+def get_n_hls_colors(num):
+    hls_colors = []
+    i = 0
+    step = 360.0 / num
+    while i < 360:
+        h = i
+        s = 90 + random.random() * 10
+        l = 50 + random.random() * 10
+        _hlsc = [h / 360.0, l / 100.0, s / 100.0]
+        hls_colors.append(_hlsc)
+        i += step
+    return hls_colors
+ 
+def ncolors(num):
+    rgb_colors = []
+    if num < 1:
+        return rgb_colors
+    hls_colors = get_n_hls_colors(num)
+    for hlsc in hls_colors:
+        _r, _g, _b = colorsys.hls_to_rgb(hlsc[0], hlsc[1], hlsc[2])
+        r, g, b = [int(x * 255.0) for x in (_r, _g, _b)]
+        rgb_colors.append([r, g, b])
+ 
+    return rgb_colors
+
+def show_rbbox_color(data,result, img_norm_cfg, class_names,
+            score_thr=0.1, file_name='0.png'):
+    
+    rbbox_result = result
+    img_tensor = data['img'][0]
+    img_metas = data['img_meta'][0].data[0]
+    imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+    
+    for img, img_meta in zip(imgs, img_metas):
+        h, w, _ = img_meta['img_shape']
+        img_show = img[:h, :w, :]
+        
+        rbboxes = np.vstack(rbbox_result)
+
+        # draw rbbox
+        labels = [
+            np.full(rbbox.shape[0], i, dtype=np.int32)
+                for i, rbbox in enumerate(rbbox_result)
+        ]
+        labels = np.concatenate(labels)
+        
+        img = imread(img_show)
+        
+        scores = rbboxes[:, -1]
+        inds = scores > score_thr
+        rbboxes = rbboxes[inds, :8]
+        labels = labels[inds]
+        
+        # rbbox_color = ncolors(16)
+        rbbox_color = [[247, 11, 11], [244, 103, 19], \
+            [250, 199, 48], [220, 245, 45], [150, 247, 52], \
+                [69, 244, 44], [18, 243, 75], [27, 251, 167], \
+                    [38, 248, 248], [18, 158, 242], [15, 74, 249], \
+                        [33, 2, 253], [147, 44, 250], [220, 29, 248], \
+                            [243, 16, 186], [250, 43, 121]]
+        text_color = (0, 255, 0)
+        font_scale = 0.5
+        
+        for rbbox, score, label in zip(rbboxes, scores, labels):
+            rbbox_int = rbbox.astype(np.int32)
+            rbbox_int = rbbox_int.reshape(4,2)
+            cv2.drawContours(img,[rbbox_int],0,rbbox_color[label],2)
+            # label_text = class_names[
+            #     label] if class_names is not None else 'cls {}'.format(label)
+            # label_text += '|{:.02f}'.format(score)
+            # cv2.putText(img, label_text, (rbbox_int[0][0], rbbox_int[0][1] - 2),
+            #         cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
+        
+        cv2.imwrite(file_name,img)
+
 def show_mask(data,result, img_norm_cfg, class_names,
             score_thr=0.3, file_name='0.png'):
     

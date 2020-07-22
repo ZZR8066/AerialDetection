@@ -353,8 +353,12 @@ class BBoxHeadRbbox(nn.Module):
             new_rois = choose_best_Rroi_batch(new_rois)
         else:
             if self.with_module:
-                bboxes = delta2dbbox(rois[:, 1:], bbox_pred, self.target_means,
-                                    self.target_stds, img_meta['img_shape'])
+                # bboxes = delta2dbbox(rois[:, 1:], bbox_pred, self.target_means,
+                #                     self.target_stds, img_meta['img_shape'])
+
+                # 替换为第二阶段相应的解码方案
+                bboxes = delta2dbbox_v2(rois[:, 1:], bbox_pred, self.target_means,
+                                  self.target_stds, img_meta['img_shape'])
             else:
                 bboxes = delta2dbbox_v3(rois[:, 1:], bbox_pred, self.target_means,
                                     self.target_stds, img_meta['img_shape'])

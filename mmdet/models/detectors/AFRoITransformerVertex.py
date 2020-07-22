@@ -330,7 +330,19 @@ class AFRoITransformerVertex(BaseDetectorNew, RPNTestMixin):
             rbbox_feats = self.shared_head_rbbox(rbbox_feats)
 
         rcls_score, rbbox_pred = self.rbbox_head(rbbox_feats)
-        det_rbboxes, det_labels = self.rbbox_head.get_det_rbboxes(
+
+        rbbox_label = rcls_score.argmax(dim=1)
+        rrois = self.rbbox_head.regress_by_class_rbbox(rrois, rbbox_label, rbbox_pred,
+                                                      img_meta[0])
+        
+        rbbox_feats = self.vertex_roi_extractor(
+            x[:len(self.vertex_roi_extractor.featmap_strides)], rrois)
+        if self.with_shared_head_rbbox:
+            rbbox_feats = self.shared_head_rbbox(rbbox_feats)
+
+        rcls_score, rbbox_pred = self.vertex_head(rbbox_feats)
+
+        det_rbboxes, det_labels = self.vertex_head.get_det_rbboxes(
             rrois,
             rcls_score,
             rbbox_pred,
