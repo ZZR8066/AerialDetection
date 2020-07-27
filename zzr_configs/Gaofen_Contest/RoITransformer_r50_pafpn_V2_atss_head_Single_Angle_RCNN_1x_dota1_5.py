@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='AF_InLd_RoITransformer',
+    type='AFSingleRoITransformer',
     pretrained='/disk2/zzr/resnet50.pth',
     backbone=dict(
         type='ResNet',
@@ -18,14 +18,6 @@ model = dict(
         extra_convs_on_inputs=False,  # use P5
         num_outs=5,
         relu_before_extra_convs=True),
-    InLd=dict(
-        type='InLD_Module',
-        strides=[8, 16, 32, 64, 128], # The stride of lowest layer
-        # stacked_convs=7,
-        dilations=[1,1,2,4,8,16,1],
-        num_classes=17, # Class num + bg
-        in_channels=256,
-        segm_loss_weight=[0.2, 0.2, 0.2, 0.2, 0.2]), # loss weight for each level feature map
     rpn_head=dict(
         type='ATSSHead',
         num_classes=17,
@@ -68,27 +60,6 @@ model = dict(
         reg_class_agnostic=True,
         with_module=False,
         hbb_trans='hbb2obb_v2',
-        loss_cls=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)),
-    rbbox_roi_extractor=dict(
-        type='RboxMultiRoIExtractor',
-        panet_channels=1024,
-        # type='RboxSingleRoIExtractor',
-        roi_layer=dict(type='RoIAlignRotated', out_size=7, sample_num=2),
-        out_channels=256,
-        featmap_strides=[8, 16, 32, 64, 128]),
-    rbbox_head = dict(
-        type='FusedFCBBoxHeadRbbox',
-        # type='SharedFCBBoxHeadRbbox',
-        num_fcs=2,
-        in_channels=256,
-        fc_out_channels=1024,
-        roi_feat_size=7,
-        num_classes=17,
-        target_means=[0., 0., 0., 0., 0.],
-        target_stds=[0.05, 0.05, 0.1, 0.1, 0.05],
-        reg_class_agnostic=False,
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
         loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))
@@ -245,7 +216,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_InLd_atss_head_1x_dota1_5'
+work_dir = '/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_atss_head_Single_Angle_RCNN_1x_dota1_5'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

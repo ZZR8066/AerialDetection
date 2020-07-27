@@ -32,6 +32,7 @@ class InLD_Module(nn.Module):
     def __init__(self,
                 strides=[8, 16, 32, 64, 128], # The stride of lowest layer
                 stacked_convs=7,
+                dilations=[1,1,2,4,8,16,1],
                 num_classes=17, # Class num + bg
                 in_channels=256,
                 segm_loss_weight=[0.2, 0.2, 0.2, 0.2, 0.2]):
@@ -41,26 +42,34 @@ class InLD_Module(nn.Module):
         self.segm_loss_weight = segm_loss_weight
         self.stacked_convs =  stacked_convs
         
-        self.dilated_convs = nn.ModuleList()
-        for i in range(self.stacked_convs):
-            d_conv = ConvModule(
-                in_channels=in_channels,
-                out_channels=in_channels,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=False,
-                conv_cfg=None,
-                norm_cfg=dict(type='SyncBN',requires_grad=True),
-                activation='relu',
-                inplace=True,
-                activate_last=True)
-            self.dilated_convs.append(d_conv)
-                
-        self.dilated_convs = nn.Sequential(*self.dilated_convs)
-        
-        self.segm_conv = nn.Conv2d(in_channels, num_classes, kernel_size=1, stride=1)
-        self.InLd_conv = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1)
+        self.dilated_convs_levels = nn.ModuleList()
+        for _ in range(len(strides)):
+            dilated_convs_level = nn.ModuleList()
+            dilated_convs = nn.ModuleList()
+            for dilation in dilations:
+                d_conv = ConvModule(
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    kernel_size=3,
+                    dilation=dilation,
+                    padding=dilation,
+                    stride=1,
+                    bias=False,
+                    conv_cfg=None,
+                    norm_cfg=dict(type='SyncBN',requires_grad=True),
+                    activation='relu',
+                    inplace=True,
+                    activate_last=True)
+                dilated_convs.append(d_conv)
+
+            dilated_convs = nn.Sequential(*dilated_convs)
+            dilated_convs_level.append(dilated_convs)
+            InLd_conv = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1)
+            dilated_convs_level.append(InLd_conv)
+            segm_conv = nn.Conv2d(in_channels, num_classes, kernel_size=1, stride=1)
+            dilated_convs_level.append(segm_conv)
+
+            self.dilated_convs_levels.append(dilated_convs_level)
         
     def init_weights(self):
         for m in self.modules():
@@ -77,11 +86,23 @@ class InLD_Module(nn.Module):
                 m.bias.data.zero_()
     
     def forward(self, feats):
-        return multi_apply(self.forward_single, feats, train=True)
+        return multi_apply(self.forward_single, feats, self.dilated_convs_levels, train=True)
 
-    def forward_single(self, feat, train):
+    def forward_single(self, feat, dilated_convs_level, train):
         orign_feat = feat
-        
+
+        # denoise
+        feat = dilated_convs_level[0](feat)
+
+        denoise_feat = dilated_convs_level[1](feat)
+        denoise_feat = orign_feat * denoise_feat
+
+        if train:
+            segm_pred = dilated_convs_level[2](feat)
+            return denoise_feat, segm_pred
+        else:
+            return denoise_feat
+        '''
         # denoise
         feat = self.dilated_convs(feat)
         
@@ -93,7 +114,8 @@ class InLD_Module(nn.Module):
             return denoise_feat, segm_pred
         else:
             return denoise_feat
-        
+        '''
+
     def add_segm_loss(self, segm_preds, gt_labels_list, gt_masks_list):
         img_shape = tuple([ l * self.strides[0] for l in segm_preds[0].shape[-2:]])
         gt_segm = self.get_segm_target(img_shape, gt_labels_list, gt_masks_list)

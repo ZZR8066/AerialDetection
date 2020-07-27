@@ -59,7 +59,7 @@ def single_gpu_test(model, data_loader, show=False, log_dir=None):
             # show_rmask_single(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
             # model.module.show_result(data, result, dataset.img_norm_cfg)
 
-        # write dota results to submit format
+        # write dota results to submit format 
         DotaResult2Submit(data['img_meta'][0].data[0][0]['file_name'], result, save_dir)
         
         batch_size = data['img'][0].size(0)

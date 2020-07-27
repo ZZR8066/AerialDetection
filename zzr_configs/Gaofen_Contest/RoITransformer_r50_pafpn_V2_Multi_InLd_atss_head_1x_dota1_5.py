@@ -245,7 +245,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_InLd_atss_head_1x_dota1_5'
+work_dir = '/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_atss_head_1x_dota1_5'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

@@ -30,6 +30,7 @@ from .AFRoITransformer import AFRoITransformer
 from .AF_APE_Vertex import AF_APE_Vertex
 from .AF_InLd_RoITransformer import AF_InLd_RoITransformer
 from .AFRoITransformerVertex import AFRoITransformerVertex
+from .AFSingleRoITransformer import AFSingleRoITransformer
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN', 'MaskScoringRCNN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
@@ -37,5 +38,5 @@ __all__ = [
     'RoITransformer', 'FasterRCNNHBBOBB', 'RotateAdaptivePANet', 'BlendMask', 'MultiMaskAdaptive',
     'SingleStageDetectorRbbox', 'RetinaNetRbbox', 'RotateMaskRCNN', 'MultiMask', 'MultiMaskScore', 
     'RotateBlendMaskRCNN', 'BlendMaskRCNN', 'ATSS', 'AFRoITransformer', 'AF_APE_Vertex',
-    'AF_InLd_RoITransformer', 'AFRoITransformerVertex'
+    'AF_InLd_RoITransformer', 'AFRoITransformerVertex', 'AFSingleRoITransformer'
 ]
