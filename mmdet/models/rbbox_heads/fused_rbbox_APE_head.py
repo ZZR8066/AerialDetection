@@ -11,7 +11,7 @@ from mmdet.core import delta2dbbox, multiclass_nms_rbbox, \
     choose_best_Rroi_batch, delta2dbbox_v2, \
     Pesudomulticlass_nms_rbbox, delta2dbbox_v3, \
     hbb2obb_v2, rbbox_target_vertex, multiclass_nms_polygons, \
-    delta2bbox_8points, bbox_target_rbbox_APE, delta2bbox_APE
+    delta2bbox_8points, bbox_target_rbbox_APE, delta2bbox_APE, roi2droi
 from ..builder import build_loss
 from ..registry import HEADS
 
@@ -137,6 +137,45 @@ class FusedAPEFCBBoxHeadRbbox(FusedFCBBoxHeadRbbox):
                 bbox_weights[pos_inds],
                 avg_factor=bbox_targets.size(0))
         return losses
+    
+    # def loss(self,
+    #          cls_score,
+    #          bbox_pred,
+    #          sampling_results,
+    #          gt_obbs_torch,
+    #          labels,
+    #          label_weights,
+    #          bbox_targets,
+    #          bbox_weights,
+    #          reduce=True):
+    #     losses = dict()
+    #     if cls_score is not None:
+    #         losses['rbbox_loss_cls'] = self.loss_cls(
+    #             cls_score, labels, label_weights, reduce=reduce)
+    #         losses['rbbox_acc'] = accuracy(cls_score, labels)
+    #     if bbox_pred is not None:
+    #         pos_inds = labels > 0
+    #         if self.reg_class_agnostic:
+    #             pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), 8)[pos_inds]
+    #         else:
+    #             pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), -1,
+    #                                            8)[pos_inds, labels[pos_inds]]
+    #         with torch.no_grad():
+    #             pos_proposals = [res.pos_bboxes for res in sampling_results]
+    #             pos_assigned_gt_inds = [res.pos_assigned_gt_inds  for res in sampling_results]
+    #             gt_obbs = [gt[inds.cpu().numpy()] \
+    #                 for inds, gt in zip(pos_assigned_gt_inds, gt_obbs_torch)]
+    #             gt_obbs = torch.cat(gt_obbs, 0)
+    #             pos_proposals = torch.cat(pos_proposals, 0)
+    #             pos_bbox = delta2bbox_APE(pos_proposals, pos_bbox_pred, self.target_means,
+    #                         self.target_stds)
+    #         losses['rbbox_loss_bbox'] = self.loss_bbox(
+    #             pos_bbox_pred,
+    #             bbox_targets[pos_inds],
+    #             pos_bbox,
+    #             gt_obbs,
+    #             bbox_weights[pos_inds])
+    #     return losses
 
     def refine_rbboxes(self, rois, labels, bbox_preds, pos_is_gts, img_metas):
         """Refine bboxes during training.
@@ -203,3 +242,43 @@ class FusedAPEFCBBoxHeadRbbox(FusedFCBBoxHeadRbbox):
            self.target_stds, img_meta['img_shape'])
 
         return new_rois
+
+    def get_det_bboxes(self,
+                       rois,
+                       cls_score,
+                       bbox_pred,
+                       img_shape,
+                       scale_factor,
+                       rescale=False,
+                       cfg=None):
+        if isinstance(cls_score, list):
+            cls_score = sum(cls_score) / float(len(cls_score))
+        scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
+
+        if bbox_pred is not None:
+            dbboxes = delta2bbox_APE(rois[:, 1:], bbox_pred, self.target_means,
+                                        self.target_stds, img_shape)
+        else:
+            # bboxes = rois[:, 1:]
+            dbboxes = roi2droi(rois)[:, 1:]
+            # dbboxes = rrois[:, 1:]
+            # TODO: add clip here
+
+        if rescale:
+            # bboxes /= scale_factor
+            # dbboxes[:, :4] /= scale_factor
+            dbboxes[:, 0::5] /= scale_factor
+            dbboxes[:, 1::5] /= scale_factor
+            dbboxes[:, 2::5] /= scale_factor
+            dbboxes[:, 3::5] /= scale_factor
+        if cfg is None:
+            return dbboxes, scores
+        else:
+            c_device = dbboxes.device
+
+            det_bboxes, det_labels = multiclass_nms_rbbox(dbboxes, scores,
+                                                    cfg.score_thr, cfg.nms,
+                                                    cfg.max_per_img)
+            # det_bboxes = torch.from_numpy(det_bboxes).to(c_device)
+            # det_labels = torch.from_numpy(det_labels).to(c_device)
+            return det_bboxes, det_labels

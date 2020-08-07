@@ -19,6 +19,7 @@ def build_dataloader(dataset,
                      dist=True,
                      **kwargs):
     shuffle = kwargs.get('shuffle', True)
+    # shuffle = kwargs.get('shuffle', False)
     if dist:
         rank, world_size = get_dist_info()
         if shuffle:

@@ -22,9 +22,6 @@ from zzr_function import (show_rmask, show_mask, tran2obb_results, trans2hbb_res
 
 import os
 # # os.environ["CUDA_VISIBLE_DEVICES"] = "3"  
-save_dir='./test_out_results/' #random_size=[512,768,1024,1280,1536]
-os.system('mkdir %s'%save_dir)
-os.system('rm %s*'%save_dir)
 
 def get_time_str():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
@@ -40,9 +37,16 @@ def single_gpu_test(model, data_loader, show=False, log_dir=None):
         prog_bar = mmcv.ProgressBar(len(dataset), file=f)
     else:
         prog_bar = mmcv.ProgressBar(len(dataset))
-    # data_loader.dataset.img_ids = [data_loader.dataset.img_ids[740]]
-    # data_loader.dataset.img_infos = [data_loader.dataset.img_infos[740]]
+    # data_loader.dataset.img_ids = [data_loader.dataset.img_ids[98]]
+    # data_loader.dataset.img_infos = [data_loader.dataset.img_infos[98]]
     # while 1:
+
+    save_dir= work_dirs + '/temp' 
+    os.system('mkdir %s'%save_dir)
+    save_dir += '/Task1_results_epoch12/' #random_size=[512,768,1024,1280,1536]
+    os.system('mkdir %s'%save_dir)
+    os.system('rm %s*'%save_dir)
+
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=not show, **data)
@@ -51,7 +55,7 @@ def single_gpu_test(model, data_loader, show=False, log_dir=None):
 
         if show:
             # show_all_box(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
-            show_rbbox_color(data, result, dataset.img_norm_cfg, dataset.CLASSES)
+            show_rbbox_color(data, result, dataset.img_norm_cfg, dataset.CLASSES, score_thr=0.1, file_name='1.png')
             # show_rbbox(data, result, dataset.img_norm_cfg, dataset.CLASSES)
             # show_bbox(data, result, dataset.img_norm_cfg, dataset.CLASSES)
             # show_mask(data, result[:2], dataset.img_norm_cfg, dataset.CLASSES)
@@ -59,7 +63,7 @@ def single_gpu_test(model, data_loader, show=False, log_dir=None):
             # show_rmask_single(data, [result[0], result[-1], result[-2]], dataset.img_norm_cfg, dataset.CLASSES)
             # model.module.show_result(data, result, dataset.img_norm_cfg)
 
-        # write dota results to submit format 
+        # write dota results to submit format  
         DotaResult2Submit(data['img_meta'][0].data[0][0]['file_name'], result, save_dir)
         
         batch_size = data['img'][0].size(0)
@@ -167,6 +171,8 @@ def main():
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
 
+    global work_dirs
+    work_dirs = os.path.dirname(args.checkpoint)
     cfg = mmcv.Config.fromfile(args.config)
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):

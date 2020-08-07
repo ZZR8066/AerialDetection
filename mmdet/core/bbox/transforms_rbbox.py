@@ -97,8 +97,8 @@ def bbox2delta_APE(proposals, gt, means=[.0, .0, .0, .0, .0, .0, .0, .0],\
     
     dx = (gx - px)/ pw
     dy = (gy - py)/ ph
-    dw = torch.log(gw / pw)# gw # 
-    dh = torch.log(gh / ph) #gh # 
+    dw = torch.log(gw / pw) # gw # 
+    dh = torch.log(gh / ph) # gh # 
     deltas = torch.stack([dx, dy, dw, dh], dim=-1)
     deltas = torch.cat([deltas,theta_90_embed,theta_180_wh_embed_norm],dim=-1)
     

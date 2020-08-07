@@ -118,6 +118,9 @@ class ATSSAllLevelsAssigner(BaseAssigner):
         overlaps_std_per_gt = candidate_overlaps.std(0)
         overlaps_thr_per_gt = overlaps_mean_per_gt + overlaps_std_per_gt
         
+        # clamp neg min threshold
+        overlaps_thr_per_gt = overlaps_thr_per_gt.clamp_min(0.3)
+        
         is_pos = candidate_overlaps >= overlaps_thr_per_gt[None, :]
         
         # limit the positive sample's center in gt

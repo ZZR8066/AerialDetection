@@ -187,7 +187,7 @@ class AFSingleRoITransformer(BaseDetectorNew, RPNTestMixin):
             cfg=rcnn_test_cfg)
             
         rbbox_results = dbbox2result(det_rbboxes, det_labels,
-                                     self.rbbox_head.num_classes)
+                                     self.bbox_head.num_classes)
 
         return rbbox_results
 

@@ -208,9 +208,14 @@ if __name__ == '__main__':
 
     # mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_results_epoch12',
     #             r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
-    
-    mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_atss_head_GenericRoIExtractor_1x_dota1_5/Task1_results_epoch12',
-                r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_atss_head_GenericRoIExtractor_1x_dota1_5/Task1_merge_results_epoch12')
+
+
+    save_dir ='/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_merge_results_epoch12'
+    os.system('mkdir %s'%save_dir)
+    os.system('rm %s*'%save_dir)
+    print('merging in ', save_dir)
+    mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_results_epoch12',
+                r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
 
     elapsed = (time.clock() - start)
     print("Time used:", elapsed)

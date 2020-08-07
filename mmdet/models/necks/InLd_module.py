@@ -95,7 +95,8 @@ class InLD_Module(nn.Module):
         feat = dilated_convs_level[0](feat)
 
         denoise_feat = dilated_convs_level[1](feat)
-        denoise_feat = orign_feat * denoise_feat
+        # denoise_feat = orign_feat * denoise_feat.softmax(dim=1)
+        denoise_feat = orign_feat * (denoise_feat.sigmoid())
 
         if train:
             segm_pred = dilated_convs_level[2](feat)

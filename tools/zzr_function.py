@@ -333,7 +333,7 @@ def ncolors(num):
     return rgb_colors
 
 def show_rbbox_color(data,result, img_norm_cfg, class_names,
-            score_thr=0.1, file_name='0.png'):
+            score_thr=0.3, file_name='0.png'):
     
     rbbox_result = result
     img_tensor = data['img'][0]
@@ -381,6 +381,8 @@ def show_rbbox_color(data,result, img_norm_cfg, class_names,
             #         cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
         
         cv2.imwrite(file_name,img)
+        # cv2.imshow('show',img)
+        # cv2.waitKey()
 
 def show_mask(data,result, img_norm_cfg, class_names,
             score_thr=0.3, file_name='0.png'):

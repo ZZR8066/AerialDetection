@@ -32,6 +32,7 @@ from .AF_InLd_RoITransformer import AF_InLd_RoITransformer
 from .AFRoITransformerVertex import AFRoITransformerVertex
 from .AFSingleRoITransformer import AFSingleRoITransformer
 from .AFSingleAPERoITransformer import AFSingleAPERoITransformer
+from .AFSingleAPERoITransformerIoUSmoothLoss import AFSingleAPERoITransformerIoUSmoothLoss
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN', 'MaskScoringRCNN',
     'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'HybridTaskCascade',
@@ -40,5 +41,5 @@ __all__ = [
     'SingleStageDetectorRbbox', 'RetinaNetRbbox', 'RotateMaskRCNN', 'MultiMask', 'MultiMaskScore', 
     'RotateBlendMaskRCNN', 'BlendMaskRCNN', 'ATSS', 'AFRoITransformer', 'AF_APE_Vertex',
     'AF_InLd_RoITransformer', 'AFRoITransformerVertex', 'AFSingleRoITransformer',
-    'AFSingleAPERoITransformer'
+    'AFSingleAPERoITransformer', 'AFSingleAPERoITransformerIoUSmoothLoss'
 ]

@@ -180,7 +180,7 @@ class AFSingleAPERoITransformer(BaseDetectorNew, RPNTestMixin):
         cls_score, bbox_pred = self.bbox_head(bbox_feats)
 
         det_rbboxes, det_labels = self.bbox_head.get_det_bboxes(
-            roi2droi(rois),
+            rois,
             cls_score,
             bbox_pred,
             img_shape,
@@ -189,7 +189,7 @@ class AFSingleAPERoITransformer(BaseDetectorNew, RPNTestMixin):
             cfg=rcnn_test_cfg)
             
         rbbox_results = dbbox2result(det_rbboxes, det_labels,
-                                     self.rbbox_head.num_classes)
+                                     self.bbox_head.num_classes)
 
         return rbbox_results
 
