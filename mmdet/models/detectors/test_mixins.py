@@ -27,6 +27,7 @@ class RPNTestMixin(object):
         return merged_proposals
 
     def aug_test_rpn_rotate(self, feats, img_metas, rpn_test_cfg):
+        ''' Origin RoITransformer
         imgs_per_gpu = len(img_metas[0])
         aug_proposals = [[] for _ in range(imgs_per_gpu)]
         for x, img_meta in zip(feats, img_metas):
@@ -37,6 +38,21 @@ class RPNTestMixin(object):
         merged_proposals = [
             merge_rotate_aug_proposals(proposals, img_meta, rpn_test_cfg)
             for proposals, img_meta in zip(aug_proposals, img_metas)
+        ]
+        '''
+        ## ZZR Revise
+        imgs_per_gpu = len(img_metas[0])
+        aug_proposals = [[] for _ in range(imgs_per_gpu)]
+        aug_metas = [[] for _ in range(imgs_per_gpu)]
+        for x, img_meta in zip(feats, img_metas):
+            proposal_list = self.simple_test_rpn(x, img_meta, rpn_test_cfg)
+            for i, proposals in enumerate(proposal_list):
+                aug_proposals[i].append(proposals)
+                aug_metas[i].append(img_meta[0])
+        # after merging, proposals will be rescaled to the original image size
+        merged_proposals = [
+            merge_rotate_aug_proposals(proposals, img_meta, rpn_test_cfg)
+            for proposals, img_meta in zip(aug_proposals, aug_metas)
         ]
         return merged_proposals
 

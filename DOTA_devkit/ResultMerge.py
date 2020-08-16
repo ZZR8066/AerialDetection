@@ -209,14 +209,24 @@ if __name__ == '__main__':
     # mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_results_epoch12',
     #             r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
 
+    # save_dir ='/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_merge_results_epoch12'
+    # os.system('mkdir %s'%save_dir)
+    # os.system('rm %s*'%save_dir)
+    # print('merging in ', save_dir)
+    # mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_results_epoch12',
+    #             r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
 
-    save_dir ='/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_merge_results_epoch12'
-    os.system('mkdir %s'%save_dir)
-    os.system('rm %s*'%save_dir)
-    print('merging in ', save_dir)
-    mergebypoly(r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_results_epoch12',
-                r'/disk2/zzr/work_dirs/RoITrans_r50_pafpn_V2_Multi_InLd_add_softmax_atss_head_1x_dota1_5/Task1_merge_results_epoch12')
+    work_dir = '/disk2/zzr/work_dirs/RoITrans_r101_pafpn_V2_InLd_atss_head_APE_RCNN_Orign_RCNN_1x_ms_dota1_5/'
+    source_dir = work_dir + 'Task1_results_epoch12'
+    save_dir = work_dir + 'Task1_merge_results_epoch12'
+    print('merging in ', save_dir, 'Y/n')
+    flag = input()
+    if flag == "Y":
+        os.system('mkdir %s'%save_dir)
+        os.system('rm %s*'%save_dir)
+        print('merging in ', save_dir)
+        mergebypoly(source_dir, save_dir)
 
-    elapsed = (time.clock() - start)
-    print("Time used:", elapsed)
+        elapsed = (time.clock() - start)
+        print("Time used:", elapsed)
     # test_nms()

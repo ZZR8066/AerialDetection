@@ -300,6 +300,16 @@ class AF_InLd_RoITransformer(BaseDetectorNew, RPNTestMixin):
 
         return rbbox_results
 
+    def extract_InLd_feat(self, img):
+        x = self.extract_feat(img)
+        x, segm_pred = self.InLd(x)
+        return x
+
+    def extract_feats(self, imgs):
+        assert isinstance(imgs, list)
+        for img in imgs:
+            yield self.extract_InLd_feat(img)
+
     def aug_test(self, imgs, img_metas, proposals=None, rescale=None):
         # raise NotImplementedError
         # import pdb; pdb.set_trace()
@@ -368,13 +378,15 @@ class AF_InLd_RoITransformer(BaseDetectorNew, RPNTestMixin):
         det_rbboxes, det_rlabels = multiclass_nms_rbbox(
                                 merged_rbboxes, merged_rscores, rcnn_test_cfg.score_thr,
                                 rcnn_test_cfg.nms, rcnn_test_cfg.max_per_img)
-
+        
         if rescale:
             _det_rbboxes = det_rbboxes
         else:
-            _det_rbboxes = det_rbboxes.clone()
-            _det_rbboxes[:, :4] *= img_metas[0][0]['scale_factor']
-
+            # _det_rbboxes = det_rbboxes.clone()
+            # _det_rbboxes[:, :4] *= img_metas[0][0]['scale_factor']
+            # not rescale, just origin shape
+            _det_rbboxes = det_rbboxes
+        
         rbbox_results = dbbox2result(_det_rbboxes, det_rlabels,
                                      self.rbbox_head.num_classes)
         return rbbox_results

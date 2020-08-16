@@ -18,11 +18,12 @@ from mmdet.core import (bbox_mapping, merge_aug_proposals, merge_aug_bboxes,
 import copy
 from mmdet.core import RotBox2Polys, polygonToRotRectangle_batch
 @DETECTORS.register_module
-class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
+class AFRoITransformerWithCoordConv(BaseDetectorNew, RPNTestMixin):
 
     def __init__(self,
                  backbone,
                  neck=None,
+                 coordconv=None,
                  shared_head=None,
                  shared_head_rbbox=None,
                  rpn_head=None,
@@ -40,13 +41,15 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
 
         assert rbbox_roi_extractor is not None
         assert rbbox_head is not None
-        super(AFRoITransformer, self).__init__()
+        super(AFRoITransformerWithCoordConv, self).__init__()
 
         self.backbone = builder.build_backbone(backbone)
 
         if neck is not None:
             self.neck = builder.build_neck(neck)
 
+        self.coordconv = builder.build_neck(coordconv)
+        
         if rpn_head is not None:
             self.rpn_head = builder.build_head(rpn_head)
 
@@ -87,7 +90,7 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
 
     def init_weights(self, pretrained=None):
-        super(AFRoITransformer, self).init_weights(pretrained)
+        super(AFRoITransformerWithCoordConv, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
         if self.with_neck:
             if isinstance(self.neck, nn.Sequential):
@@ -116,6 +119,7 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
         x = self.backbone(img)
         if self.with_neck:
             x = self.neck(x)
+        x, _ = self.coordconv(x)
         return x
 
     def forward_train(self,
@@ -357,15 +361,13 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
         det_rbboxes, det_rlabels = multiclass_nms_rbbox(
                                 merged_rbboxes, merged_rscores, rcnn_test_cfg.score_thr,
                                 rcnn_test_cfg.nms, rcnn_test_cfg.max_per_img)
-        
+
         if rescale:
             _det_rbboxes = det_rbboxes
         else:
-            # _det_rbboxes = det_rbboxes.clone()
-            # _det_rbboxes[:, :4] *= img_metas[0][0]['scale_factor']
-            # not rescale, just origin shape
-            _det_rbboxes = det_rbboxes
-        
+            _det_rbboxes = det_rbboxes.clone()
+            _det_rbboxes[:, :4] *= img_metas[0][0]['scale_factor']
+
         rbbox_results = dbbox2result(_det_rbboxes, det_rlabels,
                                      self.rbbox_head.num_classes)
         return rbbox_results

@@ -93,6 +93,8 @@ def bbox2delta_APE(proposals, gt, means=[.0, .0, .0, .0, .0, .0, .0, .0],\
     theta_180_w_embed=torch.cat([torch.cos(theta_180_w), torch.sin(theta_180_w)],dim=-1)
     theta_180_h_embed=torch.cat([torch.cos(theta_180_h), torch.sin(theta_180_h)],dim=-1)
     theta_180_wh_embed=torch.where((gt[:, 2]>gt[:, 3]).unsqueeze(-1),theta_180_w_embed,-theta_180_w_embed)
+
+    # theta_180_wh_embed_norm=theta_180_wh_embed
     theta_180_wh_embed_norm=theta_180_wh_embed*torch.clamp((gw-gh)/torch.clamp(gh,min=1e-10),max=0.5).unsqueeze(1)*2
     
     dx = (gx - px)/ pw

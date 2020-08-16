@@ -18,11 +18,12 @@ from mmdet.core import (bbox_mapping, merge_aug_proposals, merge_aug_bboxes,
 import copy
 from mmdet.core import RotBox2Polys, polygonToRotRectangle_batch
 @DETECTORS.register_module
-class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
+class AF_InLd_APERoITransformer(BaseDetectorNew, RPNTestMixin):
 
     def __init__(self,
                  backbone,
                  neck=None,
+                 InLd=None,
                  shared_head=None,
                  shared_head_rbbox=None,
                  rpn_head=None,
@@ -40,13 +41,17 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
 
         assert rbbox_roi_extractor is not None
         assert rbbox_head is not None
-        super(AFRoITransformer, self).__init__()
+
+        super(AF_InLd_APERoITransformer, self).__init__()
 
         self.backbone = builder.build_backbone(backbone)
 
         if neck is not None:
             self.neck = builder.build_neck(neck)
-
+        
+        if InLd is not None:
+            self.InLd = builder.build_neck(InLd)
+            
         if rpn_head is not None:
             self.rpn_head = builder.build_head(rpn_head)
 
@@ -87,7 +92,7 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
 
     def init_weights(self, pretrained=None):
-        super(AFRoITransformer, self).init_weights(pretrained)
+        super(AF_InLd_APERoITransformer, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
         if self.with_neck:
             if isinstance(self.neck, nn.Sequential):
@@ -132,7 +137,13 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
 
         # trans gt_masks to gt_obbs
         gt_obbs = gt_mask_bp_obbs_list(gt_masks)
-
+        gt_obbs = [choose_best_Rroi_batch(gt) for gt in gt_obbs]
+        
+        # denoise feature maps
+        x, segm_pred = self.InLd(x)
+        segm_loss = self.InLd.add_segm_loss(segm_pred, gt_labels, gt_masks)
+        losses.update(segm_loss)
+        
         # RPN forward and loss
         if self.with_rpn:
             rpn_outs = self.rpn_head(x)
@@ -183,22 +194,23 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
                 bbox_feats = self.shared_head(bbox_feats)
             cls_score, bbox_pred = self.bbox_head(bbox_feats)
             ## rbbox
+            gt_obbs_torch = [torch.from_numpy(gt).float().to(rois.device) for gt in gt_obbs]
             rbbox_targets = self.bbox_head.get_target(
-                sampling_results, gt_masks, gt_labels, self.train_cfg.rcnn[0])
+                sampling_results, gt_obbs_torch, gt_labels, self.train_cfg.rcnn[0])
 
             loss_bbox = self.bbox_head.loss(cls_score, bbox_pred,
                                             *rbbox_targets)
             # losses.update(loss_bbox)
             for name, value in loss_bbox.items():
                 losses['s{}.{}'.format(0, name)] = (value)
-
+            
         pos_is_gts = [res.pos_is_gt for res in sampling_results]
         roi_labels = rbbox_targets[0]
         with torch.no_grad():
             # import pdb
             # pdb.set_trace()
             rotated_proposal_list = self.bbox_head.refine_rbboxes(
-                roi2droi(rois), roi_labels, bbox_pred, pos_is_gts, img_meta
+                rois, roi_labels, bbox_pred, pos_is_gts, img_meta
             )
         # import pdb
         # pdb.set_trace()
@@ -242,11 +254,14 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
             loss_rbbox = self.rbbox_head.loss(cls_score, rbbox_pred, *rbbox_targets)
             for name, value in loss_rbbox.items():
                 losses['s{}.{}'.format(1, name)] = (value)
-
+                
         return losses
 
     def simple_test(self, img, img_meta, proposals=None, rescale=False):
         x = self.extract_feat(img)
+        # denoise
+        x, segm_pred = self.InLd(x)
+        
         proposal_list = self.simple_test_rpn(
             x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
 
@@ -262,11 +277,12 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
             bbox_feats = self.shared_head(bbox_feats)
 
         cls_score, bbox_pred = self.bbox_head(bbox_feats)
-
+        
         bbox_label = cls_score.argmax(dim=1)
-        rrois = self.bbox_head.regress_by_class_rbbox(roi2droi(rois), bbox_label, bbox_pred,
+        rrois = self.bbox_head.regress_by_class_rbbox(rois[:, 1:], bbox_label, bbox_pred,
                                                       img_meta[0])
-
+                                                      
+        rrois = torch.cat((rois[:, [0]], rrois),dim=1)
         rrois_enlarge = copy.deepcopy(rrois)
         rrois_enlarge[:, 3] = rrois_enlarge[:, 3] * self.rbbox_roi_extractor.w_enlarge
         rrois_enlarge[:, 4] = rrois_enlarge[:, 4] * self.rbbox_roi_extractor.h_enlarge
@@ -288,6 +304,16 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
                                      self.rbbox_head.num_classes)
 
         return rbbox_results
+
+    def extract_InLd_feat(self, img):
+        x = self.extract_feat(img)
+        x, segm_pred = self.InLd(x)
+        return x
+
+    def extract_feats(self, imgs):
+        assert isinstance(imgs, list)
+        for img in imgs:
+            yield self.extract_InLd_feat(img)
 
     def aug_test(self, imgs, img_metas, proposals=None, rescale=None):
         # raise NotImplementedError
@@ -327,9 +353,10 @@ class AFRoITransformer(BaseDetectorNew, RPNTestMixin):
 
 
             bbox_label = cls_score.argmax(dim=1)
-            rrois = self.bbox_head.regress_by_class_rbbox(roi2droi(rois), bbox_label,
-                                                          bbox_pred,
-                                                          img_meta[0])
+            rrois = self.bbox_head.regress_by_class_rbbox(rois[:, 1:], bbox_label, bbox_pred,
+                                                        img_meta[0])
+                                                        
+            rrois = torch.cat((rois[:, [0]], rrois),dim=1)
 
             rrois_enlarge = copy.deepcopy(rrois)
             rrois_enlarge[:, 3] = rrois_enlarge[:, 3] * self.rbbox_roi_extractor.w_enlarge

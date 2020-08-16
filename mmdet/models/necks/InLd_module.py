@@ -126,8 +126,9 @@ class InLD_Module(nn.Module):
         return dict(loss_segm=segm_loss)
     
     def add_segm_loss_single(self, segm_pred, gt_segm, stride, segm_loss_weight):
-        gt_segm = F.interpolate(
-                gt_segm, scale_factor=1 / stride)
+        # gt_segm = F.interpolate(
+        #         gt_segm, scale_factor=1 / stride)
+        gt_segm = F.interpolate(gt_segm,size=segm_pred.shape[-2:], mode='nearest')
         segm_loss = F.cross_entropy(
                 segm_pred, gt_segm.squeeze(1).long())
         segm_loss = segm_loss_weight * segm_loss

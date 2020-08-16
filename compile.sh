@@ -2,6 +2,13 @@
 
 PYTHON=${PYTHON:-"python"}
 
+echo "Building point_justify..."
+cd mmdet/ops/point_justify
+if [ -d "build" ]; then
+    rm -r build
+fi
+$PYTHON setup.py build_ext --inplace
+
 echo "Building roi align op..."
 cd mmdet/ops/roi_align
 if [ -d "build" ]; then
